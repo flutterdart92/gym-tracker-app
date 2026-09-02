@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gym_tracker_app/features/diet/presentation/screens/diet_screen.dart';
 import 'package:gym_tracker_app/features/workout/presentation/screens/workout_screen.dart';
+import '../screens/dashboard_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -13,6 +14,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = const [
+    DashboardScreen(),
     DietScreen(),
     WorkoutScreen(),
   ];
@@ -29,6 +31,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           });
         },
         items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.restaurant),
             label: 'Diet',
