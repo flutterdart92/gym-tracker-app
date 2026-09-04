@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'meal_model.g.dart';
 
-@HiveType(typeId: 1)
+@HiveType(typeId: 2)
 class MealModel extends HiveObject {
   @HiveField(0)
   final String id;

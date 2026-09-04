@@ -1,53 +1,88 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 import '../../data/models/user_model.dart';
 
-class AuthProvider with ChangeNotifier {
+class AuthProvider extends ChangeNotifier {
+  static const String _userBoxName = 'userBox';
   UserModel? _currentUser;
-  bool _isLoggedIn = false;
+  bool _isLoading = false;
 
   UserModel? get currentUser => _currentUser;
-  bool get isLoggedIn => _isLoggedIn;
+  bool get isAuthenticated => _currentUser != null;
+  bool get isLoading => _isLoading;
 
-  Future<bool> login(String email, String password) async {
-    final box = await Hive.openBox<UserModel>('users');
-    final user = box.values.firstWhere(
-      (u) => u.email == email && u.password == password,
-      orElse: () => UserModel(id: '', email: '', password: '', name: ''),
-    );
+  AuthProvider() {
+    _loadUser();
+  }
 
-    if (user.id.isNotEmpty) {
-      _currentUser = user;
-      _isLoggedIn = true;
+  Future<void> _loadUser() async {
+    final box = await Hive.openBox<UserModel>(_userBoxName);
+    if (box.isNotEmpty) {
+      _currentUser = box.getAt(0);
       notifyListeners();
-      return true;
     }
-    return false;
   }
 
-  Future<bool> signUp(String name, String email, String password) async {
-    final box = await Hive.openBox<UserModel>('users');
-    final exists = box.values.any((u) => u.email == email);
-
-    if (exists) return false;
-
-    final newUser = UserModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name,
-      email: email,
-      password: password,
-    );
-
-    await box.put(newUser.id, newUser);
-    _currentUser = newUser;
-    _isLoggedIn = true;
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String name,
+    int? age,
+    double? weight,
+    String? fitnessGoal,
+  }) async {
+    _isLoading = true;
     notifyListeners();
-    return true;
+
+    try {
+      final newUser = UserModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        email: email,
+        password: password,
+        name: name,
+        age: age,
+        weight: weight,
+        fitnessGoal: fitnessGoal,
+      );
+
+      final box = await Hive.openBox<UserModel>(_userBoxName);
+      await box.clear();
+      await box.add(newUser);
+
+      _currentUser = newUser;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  void logout() {
+  Future<void> login(String email, String password) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final box = await Hive.openBox<UserModel>(_userBoxName);
+
+      if (box.isEmpty) {
+        throw Exception("No account found. Please sign up first.");
+      }
+
+      final savedUser = box.getAt(0);
+      if (savedUser?.email != email || savedUser?.password != password) {
+        throw Exception("Invalid email or password.");
+      }
+
+      _currentUser = savedUser;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> logout() async {
+    final box = await Hive.openBox<UserModel>(_userBoxName);
+    await box.clear();
     _currentUser = null;
-    _isLoggedIn = false;
     notifyListeners();
   }
 }

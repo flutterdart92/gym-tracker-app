@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'core/services/hive_service.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/screens/auth_screen.dart';
+import 'features/dashboard/presentation/pages/main_navigation_screen.dart';
 import 'features/diet/presentation/providers/diet_provider.dart';
 import 'features/workout/presentation/providers/workout_provider.dart';
 
@@ -30,7 +31,14 @@ class GymTrackerApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
-        home: const AuthScreen(),
+        home: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            if (authProvider.isAuthenticated) {
+              return const MainNavigationScreen();
+            }
+            return const AuthScreen();
+          },
+        ),
       ),
     );
   }
