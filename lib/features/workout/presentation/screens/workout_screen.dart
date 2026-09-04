@@ -20,6 +20,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   final TextEditingController _repsController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _setsController.dispose();
+    _repsController.dispose();
+    _weightController.dispose();
+    super.dispose();
+  }
+
   void _showAddWorkoutModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -36,12 +45,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Log Exercise',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'Log Exercise',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                    labelText: 'Exercise Name (e.g., Bench Press)'),
+                  labelText: 'Exercise Name (e.g., Bench Press)',
+                ),
                 validator: (val) =>
                     val == null || val.isEmpty ? 'Enter exercise name' : null,
               ),
@@ -85,10 +97,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   if (_formKey.currentState!.validate()) {
                     final exercise = ExerciseModel(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      name: _nameController.text,
-                      sets: int.parse(_setsController.text),
-                      reps: int.parse(_repsController.text),
-                      weightKg: double.parse(_weightController.text),
+                      name: _nameController.text.trim(),
+                      sets: int.parse(_setsController.text.trim()),
+                      reps: int.parse(_repsController.text.trim()),
+                      weightKg: double.parse(_weightController.text.trim()),
                       date: DateTime.now(),
                     );
                     await _workoutService.addWorkout(exercise);
@@ -129,12 +141,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   itemBuilder: (context, index) {
                     final workout = workouts[index];
                     return ListTile(
-                      leading: const Icon(Icons.fitness_center,
-                          color: Colors.deepPurple),
-                      title: Text(workout.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      leading: const Icon(
+                        Icons.fitness_center,
+                        color: Colors.deepPurple,
+                      ),
+                      title: Text(
+                        workout.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       subtitle: Text(
-                          '${workout.sets} sets × ${workout.reps} reps @ ${workout.weightKg} kg'),
+                        '${workout.sets} sets × ${workout.reps} reps @ ${workout.weightKg} kg',
+                      ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),
                         onPressed: () => _workoutService.deleteWorkout(index),
