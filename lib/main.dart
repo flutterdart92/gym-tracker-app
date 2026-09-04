@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:gym_tracker_app/features/dashboard/presentation/pages/main_navigation_screen.dart';
 import 'package:provider/provider.dart';
 import 'core/services/hive_service.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/auth/presentation/screens/auth_screen.dart';
 import 'features/diet/presentation/providers/diet_provider.dart';
 import 'features/workout/presentation/providers/workout_provider.dart';
 
@@ -18,6 +19,7 @@ class GymTrackerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => WorkoutProvider()),
         ChangeNotifierProvider(create: (_) => DietProvider()),
       ],
@@ -28,8 +30,7 @@ class GymTrackerApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
-        home: const MainNavigationScreen(),
-        // home: const DietScreen(), // Updated to display DietScreen
+        home: const AuthScreen(),
       ),
     );
   }
