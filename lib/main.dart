@@ -6,6 +6,7 @@ import 'features/auth/presentation/screens/auth_screen.dart';
 import 'features/dashboard/presentation/pages/main_navigation_screen.dart';
 import 'features/diet/presentation/providers/diet_provider.dart';
 import 'features/workout/presentation/providers/workout_provider.dart';
+import 'features/profile/presentation/providers/profile_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,22 +24,34 @@ class GymTrackerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => WorkoutProvider()),
         ChangeNotifierProvider(create: (_) => DietProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
-      child: MaterialApp(
-        title: 'Gym Tracker',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
-        home: Consumer<AuthProvider>(
-          builder: (context, authProvider, _) {
-            if (authProvider.isAuthenticated) {
-              return const MainNavigationScreen();
-            }
-            return const AuthScreen();
-          },
-        ),
+      child: Consumer<ProfileProvider>(
+        builder: (context, profileProvider, _) {
+          return MaterialApp(
+            title: 'Gym Tracker',
+            debugShowCheckedModeBanner: false,
+            themeMode: profileProvider.themeMode,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                  seedColor: Colors.deepPurple, brightness: Brightness.light),
+              useMaterial3: true,
+            ),
+            darkTheme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                  seedColor: Colors.deepPurple, brightness: Brightness.dark),
+              useMaterial3: true,
+            ),
+            home: Consumer<AuthProvider>(
+              builder: (context, authProvider, _) {
+                if (authProvider.isAuthenticated) {
+                  return const MainNavigationScreen();
+                }
+                return const AuthScreen();
+              },
+            ),
+          );
+        },
       ),
     );
   }
