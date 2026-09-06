@@ -4,6 +4,7 @@ import '../../data/models/user_model.dart';
 
 class AuthProvider extends ChangeNotifier {
   static const String _userBoxName = 'userBox';
+  static const String _sessionBoxName = 'sessionBox';
   UserModel? _currentUser;
   bool _isLoading = false;
 
@@ -16,9 +17,12 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _loadUser() async {
-    final box = await Hive.openBox<UserModel>(_userBoxName);
-    if (box.isNotEmpty) {
-      _currentUser = box.getAt(0);
+    final sessionBox = await Hive.openBox(_sessionBoxName);
+    final userBox = await Hive.openBox<UserModel>(_userBoxName);
+
+    final String? activeEmail = sessionBox.get('activeUserEmail');
+    if (activeEmail != null && userBox.containsKey(activeEmail)) {
+      _currentUser = userBox.get(activeEmail);
       notifyListeners();
     }
   }
@@ -35,9 +39,16 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final cleanEmail = email.trim().toLowerCase();
+      final userBox = await Hive.openBox<UserModel>(_userBoxName);
+
+      if (userBox.containsKey(cleanEmail)) {
+        throw Exception("An account with this email already exists.");
+      }
+
       final newUser = UserModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        email: email,
+        email: cleanEmail,
         password: password,
         name: name,
         age: age,
@@ -45,9 +56,12 @@ class AuthProvider extends ChangeNotifier {
         fitnessGoal: fitnessGoal,
       );
 
-      final box = await Hive.openBox<UserModel>(_userBoxName);
-      await box.clear();
-      await box.add(newUser);
+      // Save user profile by unique email key
+      await userBox.put(cleanEmail, newUser);
+
+      // Maintain active session
+      final sessionBox = await Hive.openBox(_sessionBoxName);
+      await sessionBox.put('activeUserEmail', cleanEmail);
 
       _currentUser = newUser;
     } finally {
@@ -61,16 +75,22 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final box = await Hive.openBox<UserModel>(_userBoxName);
+      final cleanEmail = email.trim().toLowerCase();
+      final userBox = await Hive.openBox<UserModel>(_userBoxName);
 
-      if (box.isEmpty) {
-        throw Exception("No account found. Please sign up first.");
+      if (!userBox.containsKey(cleanEmail)) {
+        throw Exception(
+            "No account found for this email. Please sign up first.");
       }
 
-      final savedUser = box.getAt(0);
-      if (savedUser?.email != email || savedUser?.password != password) {
+      final savedUser = userBox.get(cleanEmail);
+      if (savedUser == null || savedUser.password != password) {
         throw Exception("Invalid email or password.");
       }
+
+      // Save active session key
+      final sessionBox = await Hive.openBox(_sessionBoxName);
+      await sessionBox.put('activeUserEmail', cleanEmail);
 
       _currentUser = savedUser;
     } finally {
@@ -80,8 +100,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    final box = await Hive.openBox<UserModel>(_userBoxName);
-    await box.clear();
+    final sessionBox = await Hive.openBox(_sessionBoxName);
+    await sessionBox.delete('activeUserEmail');
     _currentUser = null;
     notifyListeners();
   }

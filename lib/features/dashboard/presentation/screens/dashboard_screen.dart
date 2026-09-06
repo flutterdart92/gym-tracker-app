@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:gym_tracker_app/features/diet/data/models/meal_model.dart';
 import 'package:gym_tracker_app/features/diet/data/services/diet_service.dart';
 import 'package:gym_tracker_app/features/workout/data/models/exercise_model.dart';
 import 'package:gym_tracker_app/features/workout/data/services/workout_service.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:gym_tracker_app/features/auth/presentation/providers/auth_provider.dart';
 import '../../../../core/services/hive_service.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -13,6 +15,10 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final dietService = DietService();
     final workoutService = WorkoutService();
+
+    // Retrieve current logged-in user email/id
+    final currentUserId =
+        Provider.of<AuthProvider>(context).currentUser?.email ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -27,10 +33,14 @@ class DashboardScreen extends StatelessWidget {
                 Hive.box<ExerciseModel>(HiveService.exerciseBoxName)
                     .listenable(),
             builder: (context, Box<ExerciseModel> workoutBox, _) {
-              final totalCalories = dietService.getTotalCalories();
-              final totalProtein = dietService.getTotalProtein();
-              final totalCarbs = dietService.getTotalCarbs();
-              final totalFats = dietService.getTotalFats();
+              // Calculate daily totals for the specific user
+              final totalCalories =
+                  dietService.getTotalCalories(userId: currentUserId);
+              final totalProtein =
+                  dietService.getTotalProtein(userId: currentUserId);
+              final totalCarbs =
+                  dietService.getTotalCarbs(userId: currentUserId);
+              final totalFats = dietService.getTotalFats(userId: currentUserId);
 
               final workouts = workoutService.getWorkouts();
               final totalSets =
