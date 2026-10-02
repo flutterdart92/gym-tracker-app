@@ -154,10 +154,7 @@ class GymTrackerApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => WorkoutProvider()),
-        ChangeNotifierProxyProvider<AuthProvider, DietProvider>(
-          create: (context) => DietProvider(context.read<AuthProvider>()),
-          update: (context, auth, previous) => DietProvider(auth),
-        ),
+        ChangeNotifierProvider(create: (_) => DietProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
       child: Consumer<ProfileProvider>(

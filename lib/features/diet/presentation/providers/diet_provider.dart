@@ -1,79 +1,72 @@
-// import 'package:flutter/material.dart';
-// import 'package:hive/hive.dart';
-// import '../../../../core/services/hive_service.dart';
-// import '../../data/models/meal_model.dart';
-
-// class DietProvider extends ChangeNotifier {
-//   final Box<MealModel> _mealBox = Hive.box<MealModel>(HiveService.mealBoxName);
-
-//   List<MealModel> get meals => _mealBox.values.toList();
-
-//   Future<void> addMeal(MealModel meal) async {
-//     await _mealBox.put(meal.id, meal);
-//     notifyListeners();
-//   }
-
-//   Future<void> deleteMeal(String id) async {
-//     await _mealBox.delete(id);
-//     notifyListeners();
-//   }
-// }
-
 import 'package:flutter/material.dart';
+import 'package:gym_tracker_app/core/services/hive_service.dart';
+import 'package:gym_tracker_app/features/diet/data/models/meal_model.dart';
 import 'package:hive/hive.dart';
-import '../../data/models/meal_model.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 
 class DietProvider extends ChangeNotifier {
-  final Box<MealModel> _mealBox = Hive.box<MealModel>('meals_box');
-  final AuthProvider authProvider;
+  List<MealModel> _meals = [];
+  String? _currentUserId;
 
-  DietProvider(this.authProvider);
+  List<MealModel> get meals => _meals;
 
-  DateTime _selectedDate = DateTime.now();
-  DateTime get selectedDate => _selectedDate;
+  /// Load meals belonging strictly to active userId
+  Future<void> loadUserMeals(String userId) async {
+    _currentUserId = userId;
+    final box = await Hive.openBox<MealModel>(
+      HiveService.mealBoxName,
+      encryptionCipher: HiveService.cipher,
+    );
 
-  void setSelectedDate(DateTime date) {
-    _selectedDate = date;
+    _meals = box.values.where((meal) => meal.userId == userId).toList();
+
     notifyListeners();
   }
 
-  bool _isSameDay(DateTime d1, DateTime d2) {
-    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
-  }
-
-  List<MealModel> get mealsForSelectedDate {
-    final currentUserId = authProvider.currentUser?.email ?? '';
-    return _mealBox.values.where((meal) {
-      return meal.userId == currentUserId &&
-          _isSameDay(meal.date, _selectedDate);
+  /// Get today's meals for current user
+  List<MealModel> get todayMeals {
+    final now = DateTime.now();
+    return _meals.where((m) {
+      return m.date.year == now.year &&
+          m.date.month == now.month &&
+          m.date.day == now.day;
     }).toList();
   }
 
-  int get totalCaloriesForSelectedDate {
-    return mealsForSelectedDate.fold(0, (sum, meal) => sum + meal.calories);
-  }
+  /// Add meal bound to active userId
+  Future<void> addMeal({
+    required String name,
+    required int calories,
+    required double protein,
+    required double carbs,
+    required double fats,
+  }) async {
+    if (_currentUserId == null) return;
 
-  double get totalProteinForSelectedDate {
-    return mealsForSelectedDate.fold(
-        0.0, (sum, meal) => sum + meal.proteinGrams);
-  }
+    final box = await Hive.openBox<MealModel>(
+      HiveService.mealBoxName,
+      encryptionCipher: HiveService.cipher,
+    );
 
-  double get totalCarbsForSelectedDate {
-    return mealsForSelectedDate.fold(0.0, (sum, meal) => sum + meal.carbsGrams);
-  }
+    final newMeal = MealModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      userId: _currentUserId!,
+      name: name,
+      calories: calories,
+      proteinGrams: protein,
+      carbsGrams: carbs,
+      fatGrams: fats,
+      date: DateTime.now(),
+    );
 
-  double get totalFatsForSelectedDate {
-    return mealsForSelectedDate.fold(0.0, (sum, meal) => sum + meal.fatGrams);
-  }
-
-  Future<void> addMeal(MealModel meal) async {
-    await _mealBox.add(meal);
+    await box.put(newMeal.id, newMeal);
+    _meals.add(newMeal);
     notifyListeners();
   }
 
-  Future<void> deleteMeal(MealModel meal) async {
-    await meal.delete();
+  /// Reset state on logout
+  void resetState() {
+    _meals = [];
+    _currentUserId = null;
     notifyListeners();
   }
 }

@@ -659,6 +659,254 @@ Update your DietScreen so that deleting and calculating total calories correctly
 //   }
 // }
 
+// import 'package:flutter/material.dart';
+// import 'package:hive_flutter/hive_flutter.dart';
+// import 'package:provider/provider.dart';
+// import 'package:gym_tracker_app/features/diet/data/models/meal_model.dart';
+// import 'package:gym_tracker_app/features/diet/data/services/diet_service.dart';
+// import 'package:gym_tracker_app/core/services/hive_service.dart';
+// import 'package:gym_tracker_app/features/auth/presentation/providers/auth_provider.dart';
+
+// class DietScreen extends StatefulWidget {
+//   const DietScreen({super.key});
+
+//   @override
+//   State<DietScreen> createState() => _DietScreenState();
+// }
+
+// class _DietScreenState extends State<DietScreen> {
+//   final DietService _dietService = DietService();
+
+//   final TextEditingController _nameController = TextEditingController();
+//   final TextEditingController _caloriesController = TextEditingController();
+//   final TextEditingController _proteinController = TextEditingController();
+//   final TextEditingController _carbsController = TextEditingController();
+//   final TextEditingController _fatsController = TextEditingController();
+
+//   @override
+//   void dispose() {
+//     _nameController.dispose();
+//     _caloriesController.dispose();
+//     _proteinController.dispose();
+//     _carbsController.dispose();
+//     _fatsController.dispose();
+//     super.dispose();
+//   }
+
+//   void _showAddMealModal(BuildContext outerContext) {
+//     // Create a local GlobalKey for the form inside this modal instance
+//     final modalFormKey = GlobalKey<FormState>();
+
+//     showModalBottomSheet(
+//       context: outerContext,
+//       isScrollControlled: true,
+//       builder: (modalContext) => Padding(
+//         padding: EdgeInsets.only(
+//           bottom: MediaQuery.of(modalContext).viewInsets.bottom + 16,
+//           top: 16,
+//           left: 16,
+//           right: 16,
+//         ),
+//         child: Form(
+//           key: modalFormKey,
+//           child: Column(
+//             mainAxisSize: MainAxisSize.min,
+//             children: [
+//               const Text('Add Meal',
+//                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+//               TextFormField(
+//                 controller: _nameController,
+//                 decoration: const InputDecoration(labelText: 'Meal Name'),
+//                 validator: (val) =>
+//                     (val == null || val.trim().isEmpty) ? 'Enter name' : null,
+//               ),
+//               Row(
+//                 children: [
+//                   Expanded(
+//                     child: TextFormField(
+//                       controller: _caloriesController,
+//                       decoration:
+//                           const InputDecoration(labelText: 'Calories (kcal)'),
+//                       keyboardType: TextInputType.number,
+//                       validator: (val) {
+//                         if (val == null || val.trim().isEmpty) {
+//                           return 'Enter calories';
+//                         }
+//                         if (int.tryParse(val.trim()) == null) {
+//                           return 'Enter valid number';
+//                         }
+//                         return null;
+//                       },
+//                     ),
+//                   ),
+//                   const SizedBox(width: 8),
+//                   Expanded(
+//                     child: TextFormField(
+//                       controller: _proteinController,
+//                       decoration:
+//                           const InputDecoration(labelText: 'Protein (g)'),
+//                       keyboardType: TextInputType.number,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//               Row(
+//                 children: [
+//                   Expanded(
+//                     child: TextFormField(
+//                       controller: _carbsController,
+//                       decoration: const InputDecoration(labelText: 'Carbs (g)'),
+//                       keyboardType: TextInputType.number,
+//                     ),
+//                   ),
+//                   const SizedBox(width: 8),
+//                   Expanded(
+//                     child: TextFormField(
+//                       controller: _fatsController,
+//                       decoration: const InputDecoration(labelText: 'Fats (g)'),
+//                       keyboardType: TextInputType.number,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//               const SizedBox(height: 16),
+//               ElevatedButton(
+//                 onPressed: () async {
+//                   debugPrint('DEBUG: Save Meal Button Clicked');
+
+//                   // Ensure form state exists before calling validate()
+//                   if (modalFormKey.currentState != null &&
+//                       modalFormKey.currentState!.validate()) {
+//                     try {
+//                       final authProvider = Provider.of<AuthProvider>(
+//                           outerContext,
+//                           listen: false);
+
+//                       final userId =
+//                           authProvider.currentUser?.email ?? 'guest_user';
+//                       debugPrint('DEBUG: Saving meal under userId: $userId');
+
+//                       final meal = MealModel(
+//                         id: DateTime.now().millisecondsSinceEpoch.toString(),
+//                         name: _nameController.text.trim(),
+//                         calories:
+//                             int.tryParse(_caloriesController.text.trim()) ?? 0,
+//                         proteinGrams:
+//                             double.tryParse(_proteinController.text.trim()) ??
+//                                 0.0,
+//                         carbsGrams:
+//                             double.tryParse(_carbsController.text.trim()) ??
+//                                 0.0,
+//                         fatGrams:
+//                             double.tryParse(_fatsController.text.trim()) ?? 0.0,
+//                         date: DateTime.now(),
+//                         userId: userId,
+//                       );
+
+//                       await _dietService.addMeal(meal);
+//                       debugPrint('DEBUG: Meal saved successfully to Hive!');
+
+//                       _nameController.clear();
+//                       _caloriesController.clear();
+//                       _proteinController.clear();
+//                       _carbsController.clear();
+//                       _fatsController.clear();
+
+//                       if (modalContext.mounted) {
+//                         Navigator.pop(modalContext);
+//                       }
+//                     } catch (e, stack) {
+//                       debugPrint('DEBUG ERROR: Failed to save meal: $e');
+//                       debugPrint(stack.toString());
+//                     }
+//                   } else {
+//                     debugPrint(
+//                         'DEBUG: Form validation failed or key was null.');
+//                   }
+//                 },
+//                 child: const Text('Save Meal'),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final currentUserId =
+//         Provider.of<AuthProvider>(context).currentUser?.email ?? 'guest_user';
+
+//     return Scaffold(
+//       appBar: AppBar(title: const Text('Diet Log')),
+//       floatingActionButton: FloatingActionButton(
+//         onPressed: () => _showAddMealModal(context),
+//         child: const Icon(Icons.add),
+//       ),
+//       body: ValueListenableBuilder(
+//         valueListenable:
+//             Hive.box<MealModel>(HiveService.mealBoxName).listenable(),
+//         builder: (context, Box<MealModel> box, _) {
+//           final meals =
+//               box.values.where((meal) => meal.userId == currentUserId).toList();
+
+//           final totalCalories =
+//               _dietService.getTotalCalories(userId: currentUserId);
+
+//           return Column(
+//             children: [
+//               Card(
+//                 margin: const EdgeInsets.all(16),
+//                 child: Padding(
+//                   padding: const EdgeInsets.all(16),
+//                   child: Row(
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                     children: [
+//                       const Text('Total Calories:',
+//                           style: TextStyle(
+//                               fontSize: 16, fontWeight: FontWeight.bold)),
+//                       Text('$totalCalories kcal',
+//                           style: const TextStyle(
+//                               fontSize: 18,
+//                               color: Colors.blue,
+//                               fontWeight: FontWeight.bold)),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//               Expanded(
+//                 child: meals.isEmpty
+//                     ? const Center(child: Text('No meals logged today.'))
+//                     : ListView.builder(
+//                         itemCount: meals.length,
+//                         itemBuilder: (context, index) {
+//                           final meal = meals[index];
+//                           return ListTile(
+//                             title: Text(meal.name),
+//                             subtitle: Text(
+//                                 '${meal.calories} kcal | P: ${meal.proteinGrams}g | C: ${meal.carbsGrams}g | F: ${meal.fatGrams}g'),
+//                             trailing: IconButton(
+//                               icon: const Icon(Icons.delete, color: Colors.red),
+//                               onPressed: () async {
+//                                 await meal.delete();
+//                               },
+//                             ),
+//                           );
+//                         },
+//                       ),
+//               ),
+//             ],
+//           );
+//         },
+//       ),
+//     );
+//   }
+
+// }
+
+// 27 september addition :>
+
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -693,9 +941,23 @@ class _DietScreenState extends State<DietScreen> {
     super.dispose();
   }
 
-  void _showAddMealModal(BuildContext outerContext) {
-    // Create a local GlobalKey for the form inside this modal instance
+  void _showAddMealModal(BuildContext outerContext, {MealModel? existingMeal}) {
     final modalFormKey = GlobalKey<FormState>();
+
+    // Pre-populate fields if editing an existing meal
+    if (existingMeal != null) {
+      _nameController.text = existingMeal.name;
+      _caloriesController.text = existingMeal.calories.toString();
+      _proteinController.text = existingMeal.proteinGrams.toString();
+      _carbsController.text = existingMeal.carbsGrams.toString();
+      _fatsController.text = existingMeal.fatGrams.toString();
+    } else {
+      _nameController.clear();
+      _caloriesController.clear();
+      _proteinController.clear();
+      _carbsController.clear();
+      _fatsController.clear();
+    }
 
     showModalBottomSheet(
       context: outerContext,
@@ -712,8 +974,11 @@ class _DietScreenState extends State<DietScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Add Meal',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                existingMeal == null ? 'Add Meal' : 'Edit Meal',
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Meal Name'),
@@ -772,9 +1037,6 @@ class _DietScreenState extends State<DietScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () async {
-                  debugPrint('DEBUG: Save Meal Button Clicked');
-
-                  // Ensure form state exists before calling validate()
                   if (modalFormKey.currentState != null &&
                       modalFormKey.currentState!.validate()) {
                     try {
@@ -784,27 +1046,52 @@ class _DietScreenState extends State<DietScreen> {
 
                       final userId =
                           authProvider.currentUser?.email ?? 'guest_user';
-                      debugPrint('DEBUG: Saving meal under userId: $userId');
 
-                      final meal = MealModel(
-                        id: DateTime.now().millisecondsSinceEpoch.toString(),
-                        name: _nameController.text.trim(),
-                        calories:
-                            int.tryParse(_caloriesController.text.trim()) ?? 0,
-                        proteinGrams:
-                            double.tryParse(_proteinController.text.trim()) ??
-                                0.0,
-                        carbsGrams:
-                            double.tryParse(_carbsController.text.trim()) ??
-                                0.0,
-                        fatGrams:
-                            double.tryParse(_fatsController.text.trim()) ?? 0.0,
-                        date: DateTime.now(),
-                        userId: userId,
-                      );
+                      if (existingMeal != null) {
+                        // Create a updated MealModel with the same ID to overwrite in Hive
+                        final updatedMeal = MealModel(
+                          id: existingMeal.id,
+                          name: _nameController.text.trim(),
+                          calories:
+                              int.tryParse(_caloriesController.text.trim()) ??
+                                  0,
+                          proteinGrams:
+                              double.tryParse(_proteinController.text.trim()) ??
+                                  0.0,
+                          carbsGrams:
+                              double.tryParse(_carbsController.text.trim()) ??
+                                  0.0,
+                          fatGrams:
+                              double.tryParse(_fatsController.text.trim()) ??
+                                  0.0,
+                          date: existingMeal.date,
+                          userId: userId,
+                        );
 
-                      await _dietService.addMeal(meal);
-                      debugPrint('DEBUG: Meal saved successfully to Hive!');
+                        await _dietService.addMeal(updatedMeal);
+                      } else {
+                        // Create and add new meal
+                        final meal = MealModel(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          name: _nameController.text.trim(),
+                          calories:
+                              int.tryParse(_caloriesController.text.trim()) ??
+                                  0,
+                          proteinGrams:
+                              double.tryParse(_proteinController.text.trim()) ??
+                                  0.0,
+                          carbsGrams:
+                              double.tryParse(_carbsController.text.trim()) ??
+                                  0.0,
+                          fatGrams:
+                              double.tryParse(_fatsController.text.trim()) ??
+                                  0.0,
+                          date: DateTime.now(),
+                          userId: userId,
+                        );
+
+                        await _dietService.addMeal(meal);
+                      }
 
                       _nameController.clear();
                       _caloriesController.clear();
@@ -819,12 +1106,9 @@ class _DietScreenState extends State<DietScreen> {
                       debugPrint('DEBUG ERROR: Failed to save meal: $e');
                       debugPrint(stack.toString());
                     }
-                  } else {
-                    debugPrint(
-                        'DEBUG: Form validation failed or key was null.');
                   }
                 },
-                child: const Text('Save Meal'),
+                child: Text(existingMeal == null ? 'Save Meal' : 'Update Meal'),
               ),
             ],
           ),
@@ -833,10 +1117,15 @@ class _DietScreenState extends State<DietScreen> {
     );
   }
 
+  bool _isSameDay(DateTime d1, DateTime d2) {
+    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserId =
         Provider.of<AuthProvider>(context).currentUser?.email ?? 'guest_user';
+    final today = DateTime.now();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Diet Log')),
@@ -848,11 +1137,16 @@ class _DietScreenState extends State<DietScreen> {
         valueListenable:
             Hive.box<MealModel>(HiveService.mealBoxName).listenable(),
         builder: (context, Box<MealModel> box, _) {
-          final meals =
-              box.values.where((meal) => meal.userId == currentUserId).toList();
+          // 1. Filter meals for active user AND current date
+          final meals = box.values.where((meal) {
+            return meal.userId == currentUserId && _isSameDay(meal.date, today);
+          }).toList();
 
-          final totalCalories =
-              _dietService.getTotalCalories(userId: currentUserId);
+          // 2. Sum calories directly from displayed meals
+          final totalCalories = meals.fold<int>(
+            0,
+            (sum, meal) => sum + meal.calories,
+          );
 
           return Column(
             children: [
@@ -886,11 +1180,21 @@ class _DietScreenState extends State<DietScreen> {
                             title: Text(meal.name),
                             subtitle: Text(
                                 '${meal.calories} kcal | P: ${meal.proteinGrams}g | C: ${meal.carbsGrams}g | F: ${meal.fatGrams}g'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                await meal.delete();
-                              },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit,
+                                      color: Colors.blue),
+                                  onPressed: () => _showAddMealModal(context,
+                                      existingMeal: meal),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
+                                  onPressed: () async => await meal.delete(),
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -903,3 +1207,13 @@ class _DietScreenState extends State<DietScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+// <: 27 september addition 
