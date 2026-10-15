@@ -14,7 +14,7 @@ class UserModel extends HiveObject {
   final String name;
 
   @HiveField(3)
-  final String? passwordHash; // Plain-text password replaced with BCrypt hash
+  final String? passwordHash;
 
   @HiveField(4)
   final int? age;
@@ -25,6 +25,9 @@ class UserModel extends HiveObject {
   @HiveField(6)
   final String? fitnessGoal;
 
+  @HiveField(7)
+  final double? height;
+
   UserModel({
     required this.id,
     required this.email,
@@ -33,5 +36,6 @@ class UserModel extends HiveObject {
     this.age,
     this.weight,
     this.fitnessGoal,
+    this.height,
   });
 }
