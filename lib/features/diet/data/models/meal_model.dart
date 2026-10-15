@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'meal_type.dart';
 
 part 'meal_model.g.dart';
 
@@ -28,6 +29,9 @@ class MealModel extends HiveObject {
   @HiveField(7)
   final String userId;
 
+  @HiveField(8)
+  final String mealTypeName;
+
   MealModel({
     required this.id,
     required this.name,
@@ -37,5 +41,8 @@ class MealModel extends HiveObject {
     required this.fatGrams,
     required this.date,
     required this.userId,
-  });
+    String? mealTypeName,
+  }) : mealTypeName = mealTypeName ?? MealType.snack.name;
+
+  MealType get mealType => MealType.fromString(mealTypeName);
 }
