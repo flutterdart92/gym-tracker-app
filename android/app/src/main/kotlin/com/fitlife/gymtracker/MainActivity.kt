@@ -1,4 +1,4 @@
-package com.example.gym_tracker_app
+package com.fitlife.gymtracker
 
 import io.flutter.embedding.android.FlutterActivity
 
