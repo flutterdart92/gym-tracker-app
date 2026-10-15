@@ -24,13 +24,14 @@ class ExerciseModelAdapter extends TypeAdapter<ExerciseModel> {
       weight: fields[4] as double,
       createdAt: fields[5] as DateTime?,
       userId: fields[6] as String,
+      setsList: (fields[7] as List?)?.cast<SetModel>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ExerciseModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class ExerciseModelAdapter extends TypeAdapter<ExerciseModel> {
       ..writeByte(5)
       ..write(obj.createdAt)
       ..writeByte(6)
-      ..write(obj.userId);
+      ..write(obj.userId)
+      ..writeByte(7)
+      ..write(obj.setsList);
   }
 
   @override
