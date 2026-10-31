@@ -7,6 +7,7 @@ Ensure that MealModelAdapter() is registered before opening HiveService.mealBoxN
 */
 
 import 'package:flutter/material.dart';
+import 'package:on_process_button_widget/on_process_button_widget.dart';
 import 'package:provider/provider.dart';
 import 'core/services/hive_service.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
@@ -17,8 +18,28 @@ import 'features/workout/presentation/providers/workout_provider.dart';
 import 'features/profile/presentation/providers/profile_provider.dart';
 
 void main() async {
+//  for on_process_button_widget
+  OnProcessButtonDefaultValues.expandedIcon = true;
+  OnProcessButtonDefaultValues.roundBorderWhenRunning = false;
+  OnProcessButtonDefaultValues.onStatusChange = (context, status) {
+    if (context == null) return;
+    if (status == OnProcessButtonStatus.running) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const AlertDialog(
+          title: Text('Processing'),
+          content: Text('Please wait...'),
+        ),
+      );
+    } else if (status == OnProcessButtonStatus.stable) {
+      Navigator.of(context).pop();
+    }
+  };
+//  ^ on_process_button_widget
   WidgetsFlutterBinding.ensureInitialized();
   await HiveService.init();
+
   runApp(const GymTrackerApp());
 }
 

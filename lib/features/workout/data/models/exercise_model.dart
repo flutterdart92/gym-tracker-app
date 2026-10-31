@@ -41,6 +41,14 @@ class ExerciseModel extends HiveObject {
   });
 
   /// Returns true if this exercise achieved a top weight / PR across previous sessions
+  // bool isPr(Box<ExerciseModel> box) {
+  //   final prevLogs = box.values.where((e) =>
+  //       e.name.trim().toLowerCase() == name.trim().toLowerCase() && e.id != id);
+  //   if (prevLogs.isEmpty) return true; // First time is always a PR!
+  //   final maxPrevWeight =
+  //       prevLogs.fold<double>(0.0, (max, e) => e.weight > max ? e.weight : max);
+  //   return weight > maxPrevWeight;
+  // }
   bool isPr(Box<ExerciseModel> box) {
     final prevLogs = box.values.where((e) =>
         e.name.trim().toLowerCase() == name.trim().toLowerCase() && e.id != id);

@@ -1,7 +1,1206 @@
+// import 'dart:convert';
+// import 'dart:io';
+// import 'package:flutter/material.dart';
+// import 'package:flutter/services.dart';
+// import 'package:flutter_animate/flutter_animate.dart';
+// import 'package:gym_tracker_app/core/theme/app_colors.dart';
+// import 'package:gym_tracker_app/features/auth/data/models/user_model.dart';
+// import 'package:gym_tracker_app/features/diet/data/models/meal_model.dart';
+// import 'package:gym_tracker_app/features/workout/data/models/exercise_model.dart';
+// import 'package:hive_flutter/hive_flutter.dart';
+// import 'package:path_provider/path_provider.dart';
+// import 'package:provider/provider.dart';
+// import 'package:share_plus/share_plus.dart';
+// import '../providers/profile_provider.dart';
+// import '../../../auth/presentation/providers/auth_provider.dart';
+// import '../../../../core/services/hive_service.dart';
+
+// class ProfileScreen extends StatefulWidget {
+//   const ProfileScreen({super.key});
+
+//   @override
+//   State<ProfileScreen> createState() => _ProfileScreenState();
+// }
+
+// class _ProfileScreenState extends State<ProfileScreen> {
+//   final _formKey = GlobalKey<FormState>();
+
+//   late TextEditingController _calController;
+//   late TextEditingController _proteinController;
+//   late TextEditingController _carbsController;
+//   late TextEditingController _fatsController;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     final profile = Provider.of<ProfileProvider>(context, listen: false);
+//     _calController =
+//         TextEditingController(text: profile.targetCalories.toString());
+//     _proteinController =
+//         TextEditingController(text: profile.targetProtein.toString());
+//     _carbsController =
+//         TextEditingController(text: profile.targetCarbs.toString());
+//     _fatsController =
+//         TextEditingController(text: profile.targetFats.toString());
+
+//     _proteinController.addListener(_onMacroChanged);
+//     _carbsController.addListener(_onMacroChanged);
+//     _fatsController.addListener(_onMacroChanged);
+//   }
+
+//   void _onMacroChanged() {
+//     setState(() {});
+//   }
+
+//   @override
+//   void dispose() {
+//     _proteinController.removeListener(_onMacroChanged);
+//     _carbsController.removeListener(_onMacroChanged);
+//     _fatsController.removeListener(_onMacroChanged);
+
+//     _calController.dispose();
+//     _proteinController.dispose();
+//     _carbsController.dispose();
+//     _fatsController.dispose();
+//     super.dispose();
+//   }
+
+//   int _calculateImpliedCalories() {
+//     final p = double.tryParse(_proteinController.text.trim()) ?? 0;
+//     final c = double.tryParse(_carbsController.text.trim()) ?? 0;
+//     final f = double.tryParse(_fatsController.text.trim()) ?? 0;
+//     return ((p * 4) + (c * 4) + (f * 9)).round();
+//   }
+
+//   void _saveGoals() {
+//     if (_formKey.currentState!.validate()) {
+//       Provider.of<ProfileProvider>(context, listen: false).updateGoals(
+//         calories: int.parse(_calController.text.trim()),
+//         protein: double.parse(_proteinController.text.trim()),
+//         carbs: double.parse(_carbsController.text.trim()),
+//         fats: double.parse(_fatsController.text.trim()),
+//       );
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         const SnackBar(content: Text('Target goals updated!')),
+//       );
+//     }
+//   }
+
+//   Future<void> _exportUserData() async {
+//     try {
+//       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+//       final currentUser = authProvider.currentUser;
+
+//       if (currentUser == null) {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           const SnackBar(content: Text('No active user found to export.')),
+//         );
+//         return;
+//       }
+
+//       final mealBox = Hive.box<MealModel>(HiveService.mealBoxName);
+//       final userMeals = mealBox.values
+//           .where((m) =>
+//               m.userId == currentUser.email || m.userId == currentUser.id)
+//           .map((m) => {
+//                 'id': m.id,
+//                 'name': m.name,
+//                 'calories': m.calories,
+//                 'proteinGrams': m.proteinGrams,
+//                 'carbsGrams': m.carbsGrams,
+//                 'fatGrams': m.fatGrams,
+//                 'date': m.date.toIso8601String(),
+//                 'mealTypeName': m.mealTypeName,
+//               })
+//           .toList();
+
+//       final exerciseBox = Hive.box<ExerciseModel>(HiveService.exerciseBoxName);
+//       final userExercises = exerciseBox.values
+//           .where((e) =>
+//               e.userId == currentUser.email || e.userId == currentUser.id)
+//           .map((e) => {
+//                 'id': e.id,
+//                 'name': e.name,
+//                 'sets': e.sets,
+//                 'reps': e.reps,
+//                 'weight': e.weight,
+//                 'createdAt': e.createdAt?.toIso8601String(),
+//                 'setsList': e.setsList
+//                     ?.map((s) => {'weight': s.weight, 'reps': s.reps})
+//                     .toList(),
+//               })
+//           .toList();
+
+//       final backupData = {
+//         'exportDate': DateTime.now().toIso8601String(),
+//         'userProfile': {
+//           'name': currentUser.name,
+//           'email': currentUser.email,
+//           'age': currentUser.age,
+//           'weight': currentUser.weight,
+//           'fitnessGoal': currentUser.fitnessGoal,
+//         },
+//         'meals': userMeals,
+//         'workouts': userExercises,
+//       };
+
+//       final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
+
+//       final directory = await getTemporaryDirectory();
+//       final file = File(
+//           '${directory.path}/gym_tracker_backup_${DateTime.now().millisecondsSinceEpoch}.json');
+//       await file.writeAsString(jsonString);
+
+//       if (!mounted) return;
+
+//       await SharePlus.instance.share(
+//         ShareParams(
+//           files: [XFile(file.path)],
+//           text: 'Here is my Gym Tracker backup data file.',
+//         ),
+//       );
+//     } catch (e) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//             content: Text('Export failed: $e'), backgroundColor: Colors.red),
+//       );
+//     }
+//   }
+
+//   void _showLogoutDialog(BuildContext context) {
+//     showDialog(
+//       context: context,
+//       builder: (BuildContext ctx) {
+//         return AlertDialog(
+//           title: const Text('Confirm Logout'),
+//           content: const Text('Are you sure you want to log out?'),
+//           actions: [
+//             TextButton(
+//               onPressed: () => Navigator.of(ctx).pop(),
+//               child: const Text('Cancel'),
+//             ),
+//             ElevatedButton(
+//               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+//               onPressed: () {
+//                 Navigator.of(ctx).pop();
+//                 Provider.of<AuthProvider>(context, listen: false)
+//                     .logout(context);
+//               },
+//               child:
+//                   const Text('Logout', style: TextStyle(color: Colors.white)),
+//             ),
+//           ],
+//         );
+//       },
+//     );
+//   }
+
+//   void _showChangePasswordDialog() {
+//     final passController = TextEditingController();
+//     showDialog(
+//       context: context,
+//       builder: (ctx) => AlertDialog(
+//         title: const Text(
+//           'Change Password',
+//           style: TextStyle(fontSize: 12),
+//         ),
+//         content: TextField(
+//           controller: passController,
+//           obscureText: true,
+//           decoration: const InputDecoration(
+//             labelText: 'New Password',
+//             border: OutlineInputBorder(),
+//           ),
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(ctx),
+//             child: const Text('Cancel'),
+//           ),
+//           ElevatedButton(
+//             onPressed: () async {
+//               if (passController.text.trim().length < 6) {
+//                 ScaffoldMessenger.of(context).showSnackBar(
+//                   const SnackBar(
+//                       content: Text('Password must be at least 6 characters.')),
+//                 );
+//                 return;
+//               }
+//               final messenger = ScaffoldMessenger.of(context);
+//               try {
+//                 await Provider.of<AuthProvider>(context, listen: false)
+//                     .changePassword(passController.text.trim());
+//                 if (ctx.mounted) Navigator.pop(ctx);
+//                 if (mounted) {
+//                   messenger.showSnackBar(
+//                     const SnackBar(
+//                         content: Text('Password changed successfully!')),
+//                   );
+//                 }
+//               } catch (e) {
+//                 if (ctx.mounted) Navigator.pop(ctx);
+//                 if (mounted) {
+//                   messenger.showSnackBar(
+//                     SnackBar(
+//                       content: Text(
+//                           'Error: ${e.toString().replaceAll('Exception: ', '')}'),
+//                       backgroundColor: Colors.red,
+//                     ),
+//                   );
+//                 }
+//               }
+//             },
+//             child: const Text('Save'),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   void _showDeleteLogsDialog() {
+//     showDialog(
+//       context: context,
+//       builder: (ctx) => AlertDialog(
+//         title: const Text('Delete All Logs?'),
+//         content: const Text(
+//           'This will clear all your logged meals and workouts. This action cannot be undone.',
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(ctx),
+//             child: const Text('Cancel'),
+//           ),
+//           ElevatedButton(
+//             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+//             onPressed: () async {
+//               final messenger = ScaffoldMessenger.of(context);
+//               try {
+//                 await Provider.of<AuthProvider>(context, listen: false)
+//                     .deleteAllLogs(context);
+//                 if (ctx.mounted) Navigator.pop(ctx);
+//                 if (mounted) {
+//                   messenger.showSnackBar(
+//                     const SnackBar(content: Text('All logs deleted.')),
+//                   );
+//                 }
+//               } catch (e) {
+//                 if (ctx.mounted) Navigator.pop(ctx);
+//                 if (mounted) {
+//                   messenger.showSnackBar(
+//                     SnackBar(
+//                       content: Text('Error deleting logs: $e'),
+//                       backgroundColor: Colors.red,
+//                     ),
+//                   );
+//                 }
+//               }
+//             },
+//             child: const Text('Delete Logs',
+//                 style: TextStyle(color: Colors.white)),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   void _showDeleteAccountDialog() {
+//     final deleteConfirmController = TextEditingController();
+//     bool canDelete = false;
+
+//     showDialog(
+//       context: context,
+//       builder: (ctx) => StatefulBuilder(
+//         builder: (context, setDialogState) {
+//           return AlertDialog(
+//             title: const Text('Delete Account',
+//                 style: TextStyle(color: Colors.red)),
+//             content: SingleChildScrollView(
+//               child: Column(
+//                 mainAxisSize: MainAxisSize.min,
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   const Text(
+//                     'This will permanently delete your account and all associated health & workout data. Type DELETE below to confirm.',
+//                     style: TextStyle(fontSize: 14),
+//                   ),
+//                   const SizedBox(height: 16),
+//                   TextField(
+//                     controller: deleteConfirmController,
+//                     decoration: const InputDecoration(
+//                       labelText: 'Type "DELETE"',
+//                       border: OutlineInputBorder(),
+//                     ),
+//                     onChanged: (val) {
+//                       setDialogState(() {
+//                         canDelete = val.trim() == 'DELETE';
+//                       });
+//                     },
+//                   ),
+//                 ],
+//               ),
+//             ),
+//             actions: [
+//               TextButton(
+//                 onPressed: () => Navigator.pop(ctx),
+//                 child: const Text('Cancel'),
+//               ),
+//               ElevatedButton(
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: canDelete ? Colors.red : Colors.grey,
+//                 ),
+//                 onPressed: canDelete
+//                     ? () async {
+//                         final messenger = ScaffoldMessenger.of(context);
+//                         try {
+//                           Navigator.pop(ctx);
+//                           await Provider.of<AuthProvider>(context,
+//                                   listen: false)
+//                               .deleteAccount(context);
+//                         } catch (e) {
+//                           if (mounted) {
+//                             messenger.showSnackBar(
+//                               SnackBar(
+//                                 content: Text('Error deleting account: $e'),
+//                                 backgroundColor: Colors.red,
+//                               ),
+//                             );
+//                           }
+//                         }
+//                       }
+//                     : null,
+//                 child: const Text('Permanently Delete',
+//                     style: TextStyle(color: Colors.white)),
+//               ),
+//             ],
+//           );
+//         },
+//       ),
+//     );
+//   }
+
+//   void _showEditProfileModal(BuildContext outerContext, UserModel user) {
+//     final editProfileFormKey = GlobalKey<FormState>();
+//     final nameController = TextEditingController(text: user.name);
+//     final ageController =
+//         TextEditingController(text: user.age?.toString() ?? '28');
+//     final weightController =
+//         TextEditingController(text: user.weight?.toString() ?? '72');
+//     final heightController =
+//         TextEditingController(text: user.height?.toString() ?? '178');
+
+//     String selectedGoal = user.fitnessGoal ?? 'Muscle Gain';
+//     final goals = ['Weight Loss', 'Muscle Gain', 'Maintenance'];
+
+//     showModalBottomSheet(
+//       context: outerContext,
+//       isScrollControlled: true,
+//       shape: const RoundedRectangleBorder(
+//         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+//       ),
+//       builder: (modalContext) {
+//         return StatefulBuilder(
+//           builder: (context, setModalState) {
+//             return Padding(
+//               padding: EdgeInsets.only(
+//                 bottom: MediaQuery.of(modalContext).viewInsets.bottom + 16,
+//                 top: 20,
+//                 left: 16,
+//                 right: 16,
+//               ),
+//               child: Form(
+//                 key: editProfileFormKey,
+//                 child: SingleChildScrollView(
+//                   child: Column(
+//                     mainAxisSize: MainAxisSize.min,
+//                     crossAxisAlignment: CrossAxisAlignment.stretch,
+//                     children: [
+//                       Row(
+//                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                         children: [
+//                           const Expanded(
+//                             child: Text(
+//                               'Edit Body Stats & Profile',
+//                               style: TextStyle(
+//                                 fontSize: 18,
+//                                 fontWeight: FontWeight.bold,
+//                               ),
+//                               overflow: TextOverflow.ellipsis,
+//                             ),
+//                           ),
+//                           IconButton(
+//                             icon: const Icon(Icons.close),
+//                             onPressed: () => Navigator.pop(modalContext),
+//                           ),
+//                         ],
+//                       ),
+//                       const SizedBox(height: 16),
+//                       TextFormField(
+//                         controller: nameController,
+//                         decoration: const InputDecoration(
+//                           labelText: 'Full Name',
+//                           border: OutlineInputBorder(),
+//                         ),
+//                         validator: (val) => val == null || val.trim().isEmpty
+//                             ? 'Name is required'
+//                             : null,
+//                       ),
+//                       const SizedBox(height: 12),
+//                       Row(
+//                         children: [
+//                           Expanded(
+//                             child: TextFormField(
+//                               controller: ageController,
+//                               keyboardType: TextInputType.number,
+//                               inputFormatters: [
+//                                 FilteringTextInputFormatter.digitsOnly
+//                               ],
+//                               decoration: const InputDecoration(
+//                                 labelText: 'Age',
+//                                 border: OutlineInputBorder(),
+//                               ),
+//                               validator: (val) {
+//                                 if (val == null || val.trim().isEmpty) {
+//                                   return 'Enter age';
+//                                 }
+//                                 final n = int.tryParse(val.trim());
+//                                 if (n == null || n < 10 || n > 120) {
+//                                   return '10–120';
+//                                 }
+//                                 return null;
+//                               },
+//                             ),
+//                           ),
+//                           const SizedBox(width: 8),
+//                           Expanded(
+//                             child: TextFormField(
+//                               controller: weightController,
+//                               keyboardType:
+//                                   const TextInputType.numberWithOptions(
+//                                       decimal: true),
+//                               inputFormatters: [
+//                                 FilteringTextInputFormatter.allow(
+//                                     RegExp(r'^\d*\.?\d{0,1}')),
+//                               ],
+//                               decoration: const InputDecoration(
+//                                 labelText: 'Weight (kg)',
+//                                 border: OutlineInputBorder(),
+//                               ),
+//                               validator: (val) {
+//                                 if (val == null || val.trim().isEmpty) {
+//                                   return 'Enter weight';
+//                                 }
+//                                 final n = double.tryParse(val.trim());
+//                                 if (n == null || n < 20 || n > 300) {
+//                                   return '20–300 kg';
+//                                 }
+//                                 return null;
+//                               },
+//                             ),
+//                           ),
+//                           const SizedBox(width: 8),
+//                           Expanded(
+//                             child: TextFormField(
+//                               controller: heightController,
+//                               keyboardType:
+//                                   const TextInputType.numberWithOptions(
+//                                       decimal: true),
+//                               inputFormatters: [
+//                                 FilteringTextInputFormatter.allow(
+//                                     RegExp(r'^\d*\.?\d{0,1}')),
+//                               ],
+//                               decoration: const InputDecoration(
+//                                 labelText: 'Height (cm)',
+//                                 border: OutlineInputBorder(),
+//                               ),
+//                               validator: (val) {
+//                                 if (val == null || val.trim().isEmpty) {
+//                                   return 'Enter height';
+//                                 }
+//                                 final n = double.tryParse(val.trim());
+//                                 if (n == null || n < 80 || n > 250) {
+//                                   return '80–250 cm';
+//                                 }
+//                                 return null;
+//                               },
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                       const SizedBox(height: 12),
+//                       DropdownButtonFormField<String>(
+//                         initialValue: goals.contains(selectedGoal)
+//                             ? selectedGoal
+//                             : goals.first,
+//                         decoration: const InputDecoration(
+//                           labelText: 'Fitness Goal',
+//                           border: OutlineInputBorder(),
+//                         ),
+//                         items: goals
+//                             .map((g) =>
+//                                 DropdownMenuItem(value: g, child: Text(g)))
+//                             .toList(),
+//                         onChanged: (val) {
+//                           if (val != null) {
+//                             setModalState(() => selectedGoal = val);
+//                           }
+//                         },
+//                       ),
+//                       const SizedBox(height: 20),
+//                       ElevatedButton(
+//                         style: ElevatedButton.styleFrom(
+//                           minimumSize: const Size.fromHeight(48),
+//                         ),
+//                         onPressed: () async {
+//                           if (editProfileFormKey.currentState!.validate()) {
+//                             final ageVal = int.parse(ageController.text.trim());
+//                             final weightVal =
+//                                 double.parse(weightController.text.trim());
+//                             final heightVal =
+//                                 double.parse(heightController.text.trim());
+
+//                             final messenger =
+//                                 ScaffoldMessenger.of(outerContext);
+
+//                             await Provider.of<AuthProvider>(outerContext,
+//                                     listen: false)
+//                                 .updateProfile(
+//                               name: nameController.text.trim(),
+//                               age: ageVal,
+//                               weight: weightVal,
+//                               height: heightVal,
+//                               fitnessGoal: selectedGoal,
+//                             );
+
+//                             final bmr = (10 * weightVal) +
+//                                 (6.25 * heightVal) -
+//                                 (5 * ageVal) +
+//                                 5;
+//                             final tdee = bmr * 1.375;
+
+//                             double calculatedCalories;
+//                             if (selectedGoal == 'Weight Loss') {
+//                               calculatedCalories = tdee - 500;
+//                             } else if (selectedGoal == 'Muscle Gain') {
+//                               calculatedCalories = tdee + 300;
+//                             } else {
+//                               calculatedCalories = tdee;
+//                             }
+
+//                             final targetCals =
+//                                 calculatedCalories.round().clamp(1200, 5000);
+//                             final targetProt =
+//                                 ((targetCals * 0.30) / 4).roundToDouble();
+//                             final targetCarb =
+//                                 ((targetCals * 0.45) / 4).roundToDouble();
+//                             final targetFat =
+//                                 ((targetCals * 0.25) / 9).roundToDouble();
+
+//                             final profileProvider =
+//                                 Provider.of<ProfileProvider>(outerContext,
+//                                     listen: false);
+//                             await profileProvider.updateGoals(
+//                               calories: targetCals,
+//                               protein: targetProt,
+//                               carbs: targetCarb,
+//                               fats: targetFat,
+//                             );
+
+//                             _calController.text = targetCals.toString();
+//                             _proteinController.text = targetProt.toString();
+//                             _carbsController.text = targetCarb.toString();
+//                             _fatsController.text = targetFat.toString();
+
+//                             if (modalContext.mounted) {
+//                               Navigator.pop(modalContext);
+//                               messenger.showSnackBar(
+//                                 const SnackBar(
+//                                   content:
+//                                       Text('Profile updated successfully!'),
+//                                 ),
+//                               );
+//                             }
+//                           }
+//                         },
+//                         child: const Text('Update Profile'),
+//                       ),
+//                       const SizedBox(height: 12),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//             );
+//           },
+//         );
+//       },
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final profile = Provider.of<ProfileProvider>(context);
+//     final auth = Provider.of<AuthProvider>(context);
+//     final user = auth.currentUser;
+//     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+//     return Scaffold(
+//       // backgroundColor: Colors.grey,
+//       backgroundColor: isDark ? const Color(0xFF0D1117) : Colors.grey[100],
+//       // appBar: AppBar(title: const Text('')),
+//       body: Padding(
+//         padding: const EdgeInsets.only(top: 50),
+//         child: SingleChildScrollView(
+//           padding: const EdgeInsets.all(16.0),
+//           child: Column(
+//             crossAxisAlignment: CrossAxisAlignment.stretch,
+//             children: [
+//               // 1. User Header & Goal Badge
+//               // Card(
+//               // elevation: 1,
+//               // shape: RoundedRectangleBorder(
+//               //     borderRadius: BorderRadius.circular(16)),
+//               // child:
+//               InkWell(
+//                 borderRadius: BorderRadius.circular(16),
+//                 onTap: user != null
+//                     ? () => _showEditProfileModal(context, user)
+//                     : null,
+//                 child: Padding(
+//                   padding: const EdgeInsets.all(16.0),
+//                   child: Row(
+//                     children: [
+//                       CircleAvatar(
+//                         radius: 35,
+//                         // backgroundColor: const Color(0xFF8B5CF6),
+//                         backgroundColor: AppColors.indigoPrimary,
+//                         child: Text(
+//                           user?.name.isNotEmpty == true
+//                               ? user!.name[0].toUpperCase()
+//                               : 'T',
+//                           style: const TextStyle(
+//                               fontSize: 26,
+//                               fontWeight: FontWeight.bold,
+//                               color: Colors.white),
+//                         ),
+//                       )
+//                           .animate(onPlay: (c) => c.repeat())
+//                           .shimmer(duration: const Duration(seconds: 2)),
+//                       const SizedBox(width: 16),
+//                       Expanded(
+//                         child: Column(
+//                           crossAxisAlignment: CrossAxisAlignment.start,
+//                           children: [
+//                             Text(
+//                               user?.name ?? 'Test User',
+//                               style: TextStyle(
+//                                   fontSize: 20,
+//                                   fontWeight: FontWeight.bold,
+//                                   color:
+//                                       isDark ? Colors.white : Colors.black87),
+//                             ),
+//                             const SizedBox(height: 2),
+//                             Text(
+//                               user?.email ?? 'test.user@example.com',
+//                               style: TextStyle(
+//                                   color: isDark
+//                                       ? Colors.grey[400]
+//                                       : Colors.grey[600],
+//                                   fontSize: 13),
+//                             ),
+//                             const SizedBox(height: 8),
+//                             Container(
+//                               padding: const EdgeInsets.symmetric(
+//                                   horizontal: 10, vertical: 3),
+//                               decoration: BoxDecoration(
+//                                 // color: const Color(0xFFD9F99D)
+//                                 //     .withValues(alpha: 0.6),
+//                                 color: isDark
+//                                     ?
+//                                     // const Color(0xFFD9F99D)
+//                                     //     .withValues(alpha: 0.6)
+//                                     const Color(0xFFA3E635)
+//                                     : const Color(0xFFA3E635),
+//                                 borderRadius: BorderRadius.circular(8),
+//                               ),
+//                               child: Text(
+//                                 'Goal: ${user?.fitnessGoal ?? 'Muscle Gain'}',
+//                                 style: const TextStyle(
+//                                   color: Color(0xFF365314),
+//                                   fontWeight: FontWeight.bold,
+//                                   fontSize: 11,
+//                                 ),
+//                               ),
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//               // ),
+
+//               const SizedBox(height: 12),
+
+//               // 2. Key Metrics Grid (Age, Weight, Height, TDEE)
+//               Card(
+//                 color: isDark ? const Color(0xFF0D1117) : Colors.white,
+//                 elevation: 1,
+//                 shape: RoundedRectangleBorder(
+//                     borderRadius: BorderRadius.circular(16)),
+//                 child: Padding(
+//                   padding:
+//                       const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+//                   child: Row(
+//                     mainAxisAlignment: MainAxisAlignment.spaceAround,
+//                     children: [
+//                       _MetricItem(
+//                           value: user?.age != null ? '${user!.age}' : '28',
+//                           label: 'Age'),
+//                       _MetricItem(
+//                           value: user?.weight != null
+//                               ? '${user!.weight} kg'
+//                               : '72 kg',
+//                           label: 'Weight'),
+//                       _MetricItem(
+//                           value: user?.height != null
+//                               ? '${user!.height} cm'
+//                               : '178 cm',
+//                           label: 'Height'),
+//                       const _MetricItem(value: '2,650', label: 'TDEE'),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(height: 12),
+
+//               // 3. Fitness Activity Stats (Workouts, PRs, Best Streak)
+//               Row(
+//                 children: [
+//                   Expanded(
+//                     child: Card(
+//                       // margin: EdgeInsets.only(),
+//                       color: isDark ? const Color(0xFF0D1117) : Colors.white,
+//                       elevation: 1,
+//                       shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(16)),
+//                       child: Padding(
+//                         padding: const EdgeInsets.only(
+//                             left: 16, right: 16, top: 16, bottom: 16),
+//                         child: Column(
+//                           crossAxisAlignment: CrossAxisAlignment.start,
+//                           children: [
+//                             Text('Workouts',
+//                                 style: TextStyle(
+//                                     color: Colors.grey[600], fontSize: 8)),
+//                             const SizedBox(height: 4),
+//                             const Text('42',
+//                                 style: TextStyle(
+//                                     fontSize: 14, fontWeight: FontWeight.bold)),
+//                           ],
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                   const SizedBox(width: 2),
+//                   Expanded(
+//                     child: Card(
+//                       color: isDark ? const Color(0xFF0D1117) : Colors.white,
+//                       elevation: 1,
+//                       shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(16)),
+//                       child: Padding(
+//                         padding: const EdgeInsets.all(16.0),
+//                         child: Column(
+//                           crossAxisAlignment: CrossAxisAlignment.start,
+//                           children: [
+//                             Text('PRs',
+//                                 style: TextStyle(
+//                                     color: Colors.grey[600], fontSize: 8)),
+//                             const SizedBox(height: 4),
+//                             const Text('8',
+//                                 style: TextStyle(
+//                                     fontSize: 14, fontWeight: FontWeight.bold)),
+//                           ],
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                   const SizedBox(width: 2),
+//                   Expanded(
+//                     child: Card(
+//                       color: isDark ? const Color(0xFF0D1117) : Colors.white,
+//                       elevation: 1,
+//                       shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(16)),
+//                       child: Padding(
+//                         padding: const EdgeInsets.all(16.0),
+//                         child: Column(
+//                           crossAxisAlignment: CrossAxisAlignment.start,
+//                           children: [
+//                             Text('Best streak',
+//                                 style: TextStyle(
+//                                     color: Colors.grey[600], fontSize: 8)),
+//                             const SizedBox(height: 4),
+//                             const Text('14 d',
+//                                 style: TextStyle(
+//                                     fontSize: 14, fontWeight: FontWeight.bold)),
+//                           ],
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//               const SizedBox(height: 12),
+
+//               // 4. Body weight trend card
+//               Card(
+//                 color: isDark ? const Color(0xFF0D1117) : Colors.white,
+//                 elevation: 1,
+//                 shape: RoundedRectangleBorder(
+//                     borderRadius: BorderRadius.circular(16)),
+//                 child: Padding(
+//                   padding: const EdgeInsets.all(16.0),
+//                   child: Column(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
+//                     children: [
+//                       Row(
+//                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                         children: [
+//                           const Text('Body weight',
+//                               style: TextStyle(
+//                                   fontSize: 13, fontWeight: FontWeight.bold)),
+//                           Container(
+//                             padding: const EdgeInsets.symmetric(
+//                                 horizontal: 8, vertical: 2),
+//                             decoration: BoxDecoration(
+//                               color: Colors.green.withValues(alpha: 0.1),
+//                               borderRadius: BorderRadius.circular(6),
+//                             ),
+//                             child: const Text('▲ 0.4 kg / wk',
+//                                 style: TextStyle(
+//                                     color: Colors.green,
+//                                     fontWeight: FontWeight.bold,
+//                                     fontSize: 9)),
+//                           ),
+//                         ],
+//                       ),
+//                       const SizedBox(height: 16),
+//                       SizedBox(
+//                         height: 50,
+//                         child: CustomPaint(
+//                           size: const Size(double.infinity, 50),
+//                           painter: _TrendChartPainter(),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(height: 12),
+
+//               // 5. Settings List Section
+//               Card(
+//                 color: isDark ? const Color(0xFF0D1117) : Colors.white,
+//                 elevation: 1,
+//                 shape: RoundedRectangleBorder(
+//                     borderRadius: BorderRadius.circular(16)),
+//                 child: Column(
+//                   children: [
+//                     _SettingRow(
+//                         title: 'Units', trailing: 'kg / cm', onTap: () {}),
+//                     const Divider(height: 1, indent: 16, endIndent: 16),
+//                     _SettingRow(
+//                         title: 'Theme',
+//                         trailing: profile.themeMode == ThemeMode.dark
+//                             ? 'Dark'
+//                             : profile.themeMode == ThemeMode.light
+//                                 ? 'Light'
+//                                 : 'System',
+//                         onTap: () => profile.toggleTheme()),
+//                     const Divider(height: 1, indent: 16, endIndent: 16),
+//                     _SettingRow(
+//                         title: 'Reminders', trailing: 'On', onTap: () {}),
+//                     const Divider(height: 1, indent: 16, endIndent: 16),
+//                     _SettingRow(
+//                         title: 'Health Connect',
+//                         trailing: 'Connected',
+//                         onTap: () {}),
+//                     const Divider(height: 1, indent: 16, endIndent: 16),
+//                     _SettingRow(
+//                         title: 'Export my data',
+//                         trailing: 'CSV',
+//                         onTap: _exportUserData),
+//                     const Divider(height: 1, indent: 16, endIndent: 16),
+//                     _SettingRow(
+//                         title: 'Change password',
+//                         trailing: '',
+//                         showChevron: true,
+//                         onTap: _showChangePasswordDialog),
+//                   ],
+//                 ),
+//               ),
+//               const SizedBox(height: 16),
+
+//               // 6. Danger Zone Card
+//               Card(
+//                 color: Colors.red.shade50,
+//                 shape: RoundedRectangleBorder(
+//                   side: BorderSide(color: Colors.red.shade200, width: 1.2),
+//                   borderRadius: BorderRadius.circular(16),
+//                 ),
+//                 child: Padding(
+//                   padding: const EdgeInsets.all(16.0),
+//                   child: Column(
+//                     crossAxisAlignment: CrossAxisAlignment.stretch,
+//                     children: [
+//                       const Text(
+//                         'DANGER ZONE',
+//                         style: TextStyle(
+//                           fontSize: 10,
+//                           fontWeight: FontWeight.bold,
+//                           color: Color.fromARGB(255, 255, 17, 0),
+//                           letterSpacing: 0.8,
+//                         ),
+//                       ),
+//                       const Divider(
+//                         height: 8,
+//                         color: Color.fromARGB(255, 255, 169, 162),
+//                         // indent: 10,
+//                         thickness: 2,
+//                       ),
+//                       Row(
+//                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                         children: [
+//                           // const Expanded(
+//                           // child:
+//                           Column(
+//                             crossAxisAlignment: CrossAxisAlignment.start,
+//                             children: [
+//                               Text('Delete all logs',
+//                                   style: TextStyle(
+//                                       color: isDark
+//                                           ? const Color.fromARGB(
+//                                               255, 19, 19, 19)
+//                                           : const Color.fromARGB(
+//                                               255, 19, 19, 19),
+//                                       fontWeight: FontWeight.bold,
+//                                       fontSize: 10)),
+//                               const SizedBox(height: 2),
+//                               const Text("Meals and workouts. Can't be undone.",
+//                                   style: TextStyle(
+//                                       color: Color.fromARGB(255, 117, 52, 52),
+//                                       fontSize: 8)),
+//                             ],
+//                           ),
+//                           // ),
+//                           const SizedBox(width: 12),
+//                           ElevatedButton(
+//                             style: ElevatedButton.styleFrom(
+//                               backgroundColor: Colors.white,
+//                               foregroundColor: Colors.red,
+//                               elevation: 0,
+//                               side: const BorderSide(color: Colors.red),
+//                               shape: RoundedRectangleBorder(
+//                                   borderRadius: BorderRadius.circular(20)),
+//                               padding: const EdgeInsets.symmetric(
+//                                   horizontal: 16, vertical: 6),
+//                               minimumSize: Size.zero,
+//                             ),
+//                             onPressed: _showDeleteLogsDialog,
+//                             child: const Text('Delete',
+//                                 style: TextStyle(
+//                                     fontWeight: FontWeight.bold, fontSize: 7)),
+//                           ),
+//                         ],
+//                       ),
+//                       // const SizedBox(height: 2),
+//                       const Divider(
+//                         height: 8,
+//                         color: Color.fromARGB(255, 255, 169, 162),
+//                         // indent: 10,
+//                         thickness: 2,
+//                       ),
+//                       Row(
+//                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                         children: [
+//                           Expanded(
+//                             child: Column(
+//                               crossAxisAlignment: CrossAxisAlignment.start,
+//                               children: [
+//                                 Text('Delete account',
+//                                     style: TextStyle(
+//                                       fontWeight: FontWeight.bold,
+//                                       fontSize: 10,
+//                                       color: isDark
+//                                           ? const Color.fromARGB(
+//                                               255, 19, 19, 19)
+//                                           : const Color.fromARGB(
+//                                               255, 19, 19, 19),
+//                                     )),
+//                                 const SizedBox(height: 2),
+//                                 const Text('Removes the account and all data.',
+//                                     style: TextStyle(
+//                                         color: Color.fromARGB(255, 117, 52, 52),
+//                                         fontSize: 8)),
+//                               ],
+//                             ),
+//                           ),
+//                           const SizedBox(width: 12),
+//                           ElevatedButton(
+//                             style: ElevatedButton.styleFrom(
+//                               backgroundColor: Colors.red.shade600,
+//                               foregroundColor: Colors.white,
+//                               elevation: 0,
+//                               shape: RoundedRectangleBorder(
+//                                   borderRadius: BorderRadius.circular(20)),
+//                               padding: const EdgeInsets.symmetric(
+//                                   horizontal: 16, vertical: 6),
+//                               minimumSize: Size.zero,
+//                             ),
+//                             onPressed: _showDeleteAccountDialog,
+//                             child: const Text('Delete',
+//                                 style: TextStyle(
+//                                     fontWeight: FontWeight.bold, fontSize: 7)),
+//                           ),
+//                         ],
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//               // const SizedBox(height: 5),
+
+//               // 7. Log Out Button at Bottom
+//               Center(
+//                 child: TextButton(
+//                   onPressed: () => _showLogoutDialog(context),
+//                   child: Text(
+//                     'Log out',
+//                     style: TextStyle(
+//                       // color: Color.fromARGB(255, 111, 111, 111),
+//                       color: isDark
+//                           ? const Color.fromARGB(255, 255, 255, 255)
+//                           : const Color.fromARGB(255, 0, 0, 0),
+//                       fontWeight: FontWeight.bold,
+//                       fontSize: 15,
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(height: 24),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+// class _MetricItem extends StatelessWidget {
+//   final String value;
+//   final String label;
+
+//   const _MetricItem({required this.value, required this.label});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Column(
+//       children: [
+//         Text(
+//           value,
+//           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+//         ),
+//         const SizedBox(height: 2),
+//         Text(
+//           label,
+//           style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+//         ),
+//       ],
+//     );
+//   }
+// }
+
+// class _SettingRow extends StatelessWidget {
+//   final String title;
+//   final String trailing;
+//   final bool showChevron;
+//   final VoidCallback onTap;
+
+//   const _SettingRow({
+//     required this.title,
+//     required this.trailing,
+//     this.showChevron = false,
+//     required this.onTap,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return InkWell(
+//       onTap: onTap,
+//       child: Padding(
+//         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+//         child: Row(
+//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//           children: [
+//             Text(title,
+//                 style:
+//                     const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+//             Row(
+//               children: [
+//                 if (trailing.isNotEmpty)
+//                   Text(trailing,
+//                       style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+//                 if (showChevron) ...[
+//                   const SizedBox(width: 4),
+//                   const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+//                 ],
+//               ],
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+// class _TrendChartPainter extends CustomPainter {
+//   @override
+//   void paint(Canvas canvas, Size size) {
+//     final paint = Paint()
+//       ..color = const Color(0xFF8B5CF6)
+//       ..strokeWidth = 2.5
+//       ..style = PaintingStyle.stroke
+//       ..strokeCap = StrokeCap.round;
+
+//     final path = Path();
+//     path.moveTo(0, size.height * 0.7);
+//     path.quadraticBezierTo(
+//       size.width * 0.3,
+//       size.height * 0.75,
+//       size.width * 0.6,
+//       size.height * 0.4,
+//     );
+//     path.quadraticBezierTo(
+//       size.width * 0.8,
+//       size.height * 0.2,
+//       size.width,
+//       size.height * 0.1,
+//     );
+
+//     canvas.drawPath(path, paint);
+//   }
+
+//   @override
+//   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+// }
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:gym_tracker_app/core/theme/app_colors.dart';
 import 'package:gym_tracker_app/features/auth/data/models/user_model.dart';
 import 'package:gym_tracker_app/features/diet/data/models/meal_model.dart';
 import 'package:gym_tracker_app/features/workout/data/models/exercise_model.dart';
@@ -22,6 +1221,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+
   late TextEditingController _calController;
   late TextEditingController _proteinController;
   late TextEditingController _carbsController;
@@ -83,7 +1283,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- CORRECTED DATA EXPORT FUNCTION ---
   Future<void> _exportUserData() async {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -96,7 +1295,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // 1. Gather user meals and workouts from Hive
       final mealBox = Hive.box<MealModel>(HiveService.mealBoxName);
       final userMeals = mealBox.values
           .where((m) =>
@@ -145,7 +1343,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final jsonString = const JsonEncoder.withIndent('  ').convert(backupData);
 
-      // 2. Write to a temporary file on the device storage
       final directory = await getTemporaryDirectory();
       final file = File(
           '${directory.path}/gym_tracker_backup_${DateTime.now().millisecondsSinceEpoch}.json');
@@ -153,7 +1350,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (!mounted) return;
 
-      // 3. Trigger native file share/save dialog (Allows saving to Files or sharing)
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
@@ -201,7 +1397,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Change Password'),
+        title: const Text(
+          'Change Password',
+          style: TextStyle(fontSize: 12),
+        ),
         content: TextField(
           controller: passController,
           obscureText: true,
@@ -376,73 +1575,155 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ========= DIET LAYOUT BOTTOM SHEET - SAME AS DIET SCREEN =========
   void _showEditProfileModal(BuildContext outerContext, UserModel user) {
     final editProfileFormKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: user.name);
     final ageController =
-        TextEditingController(text: user.age?.toString() ?? '25');
+        TextEditingController(text: user.age?.toString() ?? '28');
     final weightController =
-        TextEditingController(text: user.weight?.toString() ?? '70');
+        TextEditingController(text: user.weight?.toString() ?? '72');
     final heightController =
-        TextEditingController(text: user.height?.toString() ?? '175');
+        TextEditingController(text: user.height?.toString() ?? '178');
 
-    String selectedGoal = user.fitnessGoal ?? 'Weight Loss';
+    String selectedGoal = user.fitnessGoal ?? 'Muscle Gain';
     final goals = ['Weight Loss', 'Muscle Gain', 'Maintenance'];
+    AutovalidateMode modalAutovalidate = AutovalidateMode.disabled;
 
     showModalBottomSheet(
       context: outerContext,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 16,
-                top: 20,
-                left: 16,
-                right: 16,
+            final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+            InputDecoration fieldDecoration(
+                {required String label, String? hint, String? suffix}) {
+              return InputDecoration(
+                labelText: label,
+                hintText: hint,
+                suffixText: suffix,
+                labelStyle: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                floatingLabelStyle: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.indigoPrimary),
+                filled: true,
+                fillColor:
+                    isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF6F7FB),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                        color: isDark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                        color: AppColors.indigoPrimary, width: 1.2)),
+              );
+            }
+
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color.fromARGB(255, 19, 19, 19)
+                    : Colors.white,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              child: Form(
-                key: editProfileFormKey,
-                child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 20,
+                top: 12,
+                left: 20,
+                right: 20,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: editProfileFormKey,
+                  autovalidateMode: modalAutovalidate,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Handle bar - diet style
+                      Center(
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.grey.shade700
+                                : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Header - diet style
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               'Edit Body Stats & Profile',
                               style: TextStyle(
-                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color:
+                                    isDark ? Colors.white : AppColors.textDark,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(modalContext),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(modalContext),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.grey.shade800
+                                    : const Color(0xFFF2F3F7),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.close,
+                                  size: 18,
+                                  color:
+                                      isDark ? Colors.white70 : Colors.black87),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
+                      // Full Name - diet field
                       TextFormField(
                         controller: nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Full Name',
-                          border: OutlineInputBorder(),
-                        ),
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600),
+                        decoration: fieldDecoration(
+                            label: 'Full Name', hint: 'e.g. John Doe'),
                         validator: (val) => val == null || val.trim().isEmpty
                             ? 'Name is required'
                             : null,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
+                      // Age Weight Height row - diet style
                       Row(
                         children: [
                           Expanded(
@@ -452,23 +1733,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly
                               ],
-                              decoration: const InputDecoration(
-                                labelText: 'Age',
-                                border: OutlineInputBorder(),
-                              ),
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600),
+                              decoration:
+                                  fieldDecoration(label: 'Age', hint: '26'),
                               validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
+                                if (val == null || val.trim().isEmpty)
                                   return 'Enter age';
-                                }
                                 final n = int.tryParse(val.trim());
-                                if (n == null || n < 10 || n > 120) {
-                                  return '10–120';
-                                }
+                                if (n == null || n < 10 || n > 120)
+                                  return '10-120';
                                 return null;
                               },
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: TextFormField(
                               controller: weightController,
@@ -477,25 +1756,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       decimal: true),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(
-                                    RegExp(r'^\d*\.?\d{0,1}')),
+                                    RegExp(r'^\d*\.?\d{0,1}'))
                               ],
-                              decoration: const InputDecoration(
-                                labelText: 'Weight (kg)',
-                                border: OutlineInputBorder(),
-                              ),
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600),
+                              decoration: fieldDecoration(
+                                  label: 'Weight', suffix: 'kg', hint: '55.0'),
                               validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
+                                if (val == null || val.trim().isEmpty)
                                   return 'Enter weight';
-                                }
                                 final n = double.tryParse(val.trim());
-                                if (n == null || n < 20 || n > 300) {
-                                  return '20–300 kg';
-                                }
+                                if (n == null || n < 20 || n > 300)
+                                  return '20-300 kg';
                                 return null;
                               },
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: TextFormField(
                               controller: heightController,
@@ -504,38 +1781,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       decimal: true),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(
-                                    RegExp(r'^\d*\.?\d{0,1}')),
+                                    RegExp(r'^\d*\.?\d{0,1}'))
                               ],
-                              decoration: const InputDecoration(
-                                labelText: 'Height (cm)',
-                                border: OutlineInputBorder(),
-                              ),
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600),
+                              decoration: fieldDecoration(
+                                  label: 'Height', suffix: 'cm', hint: '178'),
                               validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
+                                if (val == null || val.trim().isEmpty)
                                   return 'Enter height';
-                                }
                                 final n = double.tryParse(val.trim());
-                                if (n == null || n < 80 || n > 250) {
-                                  return '80–250 cm';
-                                }
+                                if (n == null || n < 80 || n > 250)
+                                  return '80-250 cm';
                                 return null;
                               },
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
+                      // Fitness Goal - diet field style
                       DropdownButtonFormField<String>(
                         initialValue: goals.contains(selectedGoal)
                             ? selectedGoal
                             : goals.first,
-                        decoration: const InputDecoration(
-                          labelText: 'Fitness Goal',
-                          border: OutlineInputBorder(),
-                        ),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white),
+                        dropdownColor:
+                            isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                        decoration: fieldDecoration(label: 'Fitness Goal'),
                         items: goals
-                            .map((g) =>
-                                DropdownMenuItem(value: g, child: Text(g)))
+                            .map((g) => DropdownMenuItem(
+                                value: g,
+                                child: Text(g,
+                                    style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600))))
                             .toList(),
                         onChanged: (val) {
                           if (val != null) {
@@ -543,12 +1829,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           }
                         },
                       ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                        ),
+                      const SizedBox(height: 24),
+                      // Save button - diet haptic button
+                      _HapticScaleButton(
                         onPressed: () async {
+                          setModalState(() {
+                            modalAutovalidate =
+                                AutovalidateMode.onUserInteraction;
+                          });
                           if (editProfileFormKey.currentState!.validate()) {
                             final ageVal = int.parse(ageController.text.trim());
                             final weightVal =
@@ -612,16 +1900,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Navigator.pop(modalContext);
                               messenger.showSnackBar(
                                 const SnackBar(
-                                  content:
-                                      Text('Profile updated successfully!'),
-                                ),
+                                    content:
+                                        Text('Profile updated successfully!')),
                               );
                             }
+                          } else {
+                            HapticFeedback.heavyImpact();
                           }
                         },
-                        child: const Text('Update Profile'),
+                        child: const Text('Update Profile',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: Colors.white)),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
@@ -638,96 +1931,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final profile = Provider.of<ProfileProvider>(context);
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.currentUser;
-    final impliedCalories = _calculateImpliedCalories();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile & Settings')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              elevation: 2,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
+      backgroundColor: isDark ? const Color(0xFF0D1117) : Colors.grey[100],
+      body: Padding(
+        padding: const EdgeInsets.only(top: 50),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(16),
                 onTap: user != null
                     ? () => _showEditProfileModal(context, user)
                     : null,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Column(
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            child: Text(
-                              user?.name.isNotEmpty == true
-                                  ? user!.name[0].toUpperCase()
-                                  : 'U',
-                              style: const TextStyle(
-                                  fontSize: 24, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      user?.name ?? 'User Name',
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    const Icon(Icons.edit,
-                                        size: 18, color: Colors.grey),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  user?.email ?? 'No email available',
-                                  style: TextStyle(color: Colors.grey[600]),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 24),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      CircleAvatar(
+                        radius: 35,
+                        backgroundColor: AppColors.indigoPrimary,
+                        child: Text(
+                          user?.name.isNotEmpty == true
+                              ? user!.name[0].toUpperCase()
+                              : 'T',
+                          style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
+                        ),
+                      )
+                          .animate(onPlay: (c) => c.repeat())
+                          .shimmer(duration: const Duration(seconds: 2)),
+                      const SizedBox(width: 16),
+                      Expanded(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _StatRow(
-                              label: 'Age',
-                              value:
-                                  user?.age != null ? '${user!.age} yrs' : '--',
+                            Text(
+                              user?.name ?? 'Test User',
+                              style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isDark ? Colors.white : Colors.black87),
                             ),
-                            const SizedBox(height: 6),
-                            _StatRow(
-                              label: 'Weight',
-                              value: user?.weight != null
-                                  ? '${user!.weight} kg'
-                                  : '--',
+                            const SizedBox(height: 2),
+                            Text(
+                              user?.email ?? 'test.user@example.com',
+                              style: TextStyle(
+                                  color: isDark
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                                  fontSize: 13),
                             ),
-                            const SizedBox(height: 6),
-                            _StatRow(
-                              label: 'Height',
-                              value: user?.height != null
-                                  ? '${user!.height} cm'
-                                  : '--',
-                            ),
-                            const SizedBox(height: 6),
-                            _StatRow(
-                              label: 'Goal',
-                              value: user?.fitnessGoal ?? 'Weight Loss',
-                              isHighlight: true,
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFFA3E635)
+                                    : const Color(0xFFA3E635),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Goal: ${user?.fitnessGoal ?? 'Muscle Gain'}',
+                                style: const TextStyle(
+                                  color: Color(0xFF365314),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -736,244 +2014,403 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.lock_outline, color: Colors.blue),
-                title: const Text('Change Password'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: _showChangePasswordDialog,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: SwitchListTile(
-                title: const Text('Dark Mode',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                value: profile.themeMode == ThemeMode.dark,
-                onChanged: (val) => profile.toggleTheme(val),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+              const SizedBox(height: 12),
+              Card(
+                color: isDark ? const Color(0xFF0D1117) : Colors.white,
+                elevation: 1,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      const Text(
-                        'Daily Nutrition Targets',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Implied from macros: $impliedCalories kcal (4P + 4C + 9F)',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).primaryColor,
-                          fontWeight: FontWeight.w600,
+                      _MetricItem(
+                          value: user?.age != null ? '${user!.age}' : '28',
+                          label: 'Age'),
+                      _MetricItem(
+                          value: user?.weight != null
+                              ? '${user!.weight} kg'
+                              : '72 kg',
+                          label: 'Weight'),
+                      _MetricItem(
+                          value: user?.height != null
+                              ? '${user!.height} cm'
+                              : '178 cm',
+                          label: 'Height'),
+                      const _MetricItem(value: '2,650', label: 'TDEE'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Card(
+                      color: isDark ? const Color(0xFF0D1117) : Colors.white,
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            left: 16, right: 16, top: 16, bottom: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Workouts',
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 8)),
+                            const SizedBox(height: 4),
+                            const Text('42',
+                                style: TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.bold)),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _calController,
-                        decoration: const InputDecoration(
-                          labelText: 'Target Calories (kcal)',
-                          hintText: '800–6000',
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: Card(
+                      color: isDark ? const Color(0xFF0D1117) : Colors.white,
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('PRs',
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 8)),
+                            const SizedBox(height: 4),
+                            const Text('8',
+                                style: TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.bold)),
+                          ],
                         ),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Enter target calories';
-                          }
-                          final n = int.tryParse(v.trim());
-                          if (n == null || n < 800 || n > 6000) {
-                            return 'Enter target between 800 and 6000 kcal';
-                          }
-                          return null;
-                        },
                       ),
-                      const SizedBox(height: 8),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: Card(
+                      color: isDark ? const Color(0xFF0D1117) : Colors.white,
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Best streak',
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 8)),
+                            const SizedBox(height: 4),
+                            const Text('14 d',
+                                style: TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Card(
+                color: isDark ? const Color(0xFF0D1117) : Colors.white,
+                elevation: 1,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _proteinController,
-                              decoration: const InputDecoration(
-                                  labelText: 'Protein (g)'),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                    RegExp(r'^\d*\.?\d{0,1}')),
-                              ],
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'Enter protein';
-                                }
-                                final n = double.tryParse(v.trim());
-                                if (n == null || n < 0 || n > 500) {
-                                  return '0–500 g';
-                                }
-                                return null;
-                              },
+                          const Text('Body weight',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _carbsController,
-                              decoration:
-                                  const InputDecoration(labelText: 'Carbs (g)'),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                    RegExp(r'^\d*\.?\d{0,1}')),
-                              ],
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'Enter carbs';
-                                }
-                                final n = double.tryParse(v.trim());
-                                if (n == null || n < 0 || n > 500) {
-                                  return '0–500 g';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _fatsController,
-                              decoration:
-                                  const InputDecoration(labelText: 'Fats (g)'),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                    RegExp(r'^\d*\.?\d{0,1}')),
-                              ],
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'Enter fats';
-                                }
-                                final n = double.tryParse(v.trim());
-                                if (n == null || n < 0 || n > 500) {
-                                  return '0–500 g';
-                                }
-                                return null;
-                              },
-                            ),
+                            child: const Text('▲ 0.4 kg / wk',
+                                style: TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 9)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _saveGoals,
-                        child: const Text('Save Targets'),
+                      SizedBox(
+                        height: 50,
+                        child: CustomPaint(
+                          size: const Size(double.infinity, 50),
+                          painter: _TrendChartPainter(),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Card(
-              color: Colors.red.shade50,
-              shape: RoundedRectangleBorder(
-                side: BorderSide(color: Colors.red.shade300, width: 1.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+              const SizedBox(height: 12),
+              Card(
+                color: isDark ? const Color(0xFF0D1117) : Colors.white,
+                elevation: 1,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text(
-                          'Danger Zone',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 20),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.blue.shade800,
-                        side: BorderSide(color: Colors.blue.shade300),
-                      ),
-                      onPressed:
-                          _exportUserData, // <--- EXPORT FUNCTION CONNECTED HERE
-                      icon: const Icon(Icons.download),
-                      label: const Text('Export My Data'),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.orange.shade900,
-                        side: BorderSide(color: Colors.orange.shade400),
-                      ),
-                      onPressed: _showDeleteLogsDialog,
-                      icon: const Icon(Icons.cleaning_services),
-                      label: const Text('Delete All Logs'),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade700,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: _showDeleteAccountDialog,
-                      icon: const Icon(Icons.delete_forever),
-                      label: const Text('Delete Account'),
-                    ),
+                    _SettingRow(
+                        title: 'Units', trailing: 'kg / cm', onTap: () {}),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _SettingRow(
+                        title: 'Theme',
+                        trailing: profile.themeMode == ThemeMode.dark
+                            ? 'Dark'
+                            : profile.themeMode == ThemeMode.light
+                                ? 'Light'
+                                : 'System',
+                        onTap: () => profile.toggleTheme()),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _SettingRow(
+                        title: 'Reminders', trailing: 'On', onTap: () {}),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _SettingRow(
+                        title: 'Health Connect',
+                        trailing: 'Connected',
+                        onTap: () {}),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _SettingRow(
+                        title: 'Export my data',
+                        trailing: 'CSV',
+                        onTap: _exportUserData),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    _SettingRow(
+                        title: 'Change password',
+                        trailing: '',
+                        showChevron: true,
+                        onTap: _showChangePasswordDialog),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              child: ListTile(
+              const SizedBox(height: 16),
+              Card(
+                color: Colors.red.shade50,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.red.shade200, width: 1.2),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                leading: const Icon(Icons.logout, color: Colors.grey),
-                title: const Text(
-                  'Log Out',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'DANGER ZONE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 255, 17, 0),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const Divider(
+                        height: 8,
+                        color: Color.fromARGB(255, 255, 169, 162),
+                        thickness: 2,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Delete all logs',
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? const Color.fromARGB(
+                                              255, 19, 19, 19)
+                                          : const Color.fromARGB(
+                                              255, 19, 19, 19),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10)),
+                              const SizedBox(height: 2),
+                              const Text("Meals and workouts. Can't be undone.",
+                                  style: TextStyle(
+                                      color: Color.fromARGB(255, 117, 52, 52),
+                                      fontSize: 8)),
+                            ],
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.red,
+                              elevation: 0,
+                              side: const BorderSide(color: Colors.red),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 6),
+                              minimumSize: Size.zero,
+                            ),
+                            onPressed: _showDeleteLogsDialog,
+                            child: const Text('Delete',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 7)),
+                          ),
+                        ],
+                      ),
+                      const Divider(
+                        height: 8,
+                        color: Color.fromARGB(255, 255, 169, 162),
+                        thickness: 2,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Delete account',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                      color: isDark
+                                          ? const Color.fromARGB(
+                                              255, 19, 19, 19)
+                                          : const Color.fromARGB(
+                                              255, 19, 19, 19),
+                                    )),
+                                const SizedBox(height: 2),
+                                const Text('Removes the account and all data.',
+                                    style: TextStyle(
+                                        color: Color.fromARGB(255, 117, 52, 52),
+                                        fontSize: 8)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red.shade600,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 6),
+                              minimumSize: Size.zero,
+                            ),
+                            onPressed: _showDeleteAccountDialog,
+                            child: const Text('Delete',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 7)),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                onTap: () => _showLogoutDialog(context),
               ),
+              Center(
+                child: TextButton(
+                  onPressed: () => _showLogoutDialog(context),
+                  child: Text(
+                    'Log out',
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color.fromARGB(255, 255, 255, 255)
+                          : const Color.fromARGB(255, 0, 0, 0),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricItem extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _MetricItem({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  final String title;
+  final String trailing;
+  final bool showChevron;
+  final VoidCallback onTap;
+
+  const _SettingRow({
+    required this.title,
+    required this.trailing,
+    this.showChevron = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            Row(
+              children: [
+                if (trailing.isNotEmpty)
+                  Text(trailing,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                if (showChevron) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                ],
+              ],
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -981,39 +2418,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _StatRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool isHighlight;
+class _TrendChartPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      // ..color = const Color(0xFF8B5CF6)
+      ..color = const Color(0xFFA3E635)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-  const _StatRow({
-    required this.label,
-    required this.value,
-    this.isHighlight = false,
-  });
+    final path = Path();
+    path.moveTo(0, size.height * 0.7);
+    path.quadraticBezierTo(
+      size.width * 0.3,
+      size.height * 0.75,
+      size.width * 0.6,
+      size.height * 0.4,
+    );
+    path.quadraticBezierTo(
+      size.width * 0.8,
+      size.height * 0.2,
+      size.width,
+      size.height * 0.1,
+    );
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Same haptic button as diet screen
+class _HapticScaleButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  final Widget child;
+  const _HapticScaleButton({required this.onPressed, required this.child});
+
+  @override
+  State<_HapticScaleButton> createState() => _HapticScaleButtonState();
+}
+
+class _HapticScaleButtonState extends State<_HapticScaleButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _innerScale;
+  late Animation<double> _outerScale;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 60));
+    _innerScale = Tween<double>(begin: 1.0, end: 0.94).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _outerScale = Tween<double>(begin: 0.98, end: 1.05).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onDown(PointerDownEvent _) {
+    HapticFeedback.lightImpact();
+    setState(() => _isPressed = true);
+    _controller.forward();
+  }
+
+  void _onUp(PointerUpEvent _) {
+    setState(() => _isPressed = false);
+    _controller.reverse();
+    widget.onPressed();
+  }
+
+  void _onCancel(PointerCancelEvent _) {
+    setState(() => _isPressed = false);
+    _controller.reverse();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-          ),
+    return Listener(
+      onPointerDown: _onDown,
+      onPointerUp: _onUp,
+      onPointerCancel: _onCancel,
+      child: SizedBox(
+        width: double.infinity,
+        height: 58,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            AnimatedBuilder(
+              animation: _outerScale,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _outerScale.value,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 60),
+                    width: _isPressed ? 180 : 200,
+                    height: _isPressed ? 60 : 50,
+                    decoration: BoxDecoration(
+                      color: _isPressed
+                          ? const Color.fromARGB(255, 206, 211, 255)
+                          : const Color.fromARGB(255, 255, 255, 255),
+                      borderRadius: BorderRadius.circular(_isPressed ? 30 : 28),
+                    ),
+                  ),
+                );
+              },
+            ),
+            AnimatedBuilder(
+              animation: _innerScale,
+              builder: (context, child) =>
+                  Transform.scale(scale: _innerScale.value, child: child),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 60),
+                width: _isPressed ? 180 : 200,
+                height: _isPressed ? 46 : 50,
+                child: Material(
+                  color: _isPressed
+                      ? const Color(0xFF4F46E5)
+                      : AppColors.indigoPrimary,
+                  borderRadius: BorderRadius.circular(24),
+                  clipBehavior: Clip.antiAlias,
+                  child: Center(child: widget.child),
+                ),
+              ),
+            ),
+          ],
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: isHighlight ? Theme.of(context).primaryColor : null,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

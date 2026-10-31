@@ -236,7 +236,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       //   ],
                       // ),
                       child: Image.asset(
-                        'assets/icon/fitlife_logo.PNG', // Replace with your actual asset path
+                        'assets/icon/fitlife_logo.png', // Replace with your actual asset path
                         width: 200,
                         height: 200,
                         fit: BoxFit.contain,

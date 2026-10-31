@@ -119,7 +119,10 @@ class _FoodSearchSheetState extends State<FoodSearchSheet>
                       Text(
                         foodItem.brand!,
                         style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 13),
+                            color: Colors.grey.shade600,
+                            // color: isDark ? const Color(0xFF121212) : Colors.grey.shade50,
+
+                            fontSize: 13),
                       ),
                     const SizedBox(height: 12),
                     TextField(
@@ -218,8 +221,11 @@ class _FoodSearchSheetState extends State<FoodSearchSheet>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
+      // color: Colors.white,
+      color: isDark ? const Color(0xFF121212) : Colors.grey.shade50,
       height: MediaQuery.of(context).size.height * 0.85,
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -229,14 +235,28 @@ class _FoodSearchSheetState extends State<FoodSearchSheet>
       ),
       child: Column(
         children: [
+          // IconButton(
+          //   icon: const Icon(
+          //     Icons.close,
+          //     size: 15,
+          //   ),
+          //   onPressed: () => Navigator.pop(context),
+          // ),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Text(
-                'Search & Add Food',
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold, fontSize: 15),
+              Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: Text(
+                  'Search & Add Food',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
               ),
+              // Padding(
+              // padding: const EdgeInsets.only(left: 5),
+              // child:
               IconButton(
                 icon: const Icon(
                   Icons.close,
@@ -244,19 +264,20 @@ class _FoodSearchSheetState extends State<FoodSearchSheet>
                 ),
                 onPressed: () => Navigator.pop(context),
               ),
+              // ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           SizedBox(
             width: double.infinity, // <-- WIDTH of whole button
             height: 50,
             child: SegmentedButton<MealType>(
-              selectedIcon: const Icon(Icons.check, size: 12),
+              selectedIcon: const Icon(Icons.check, size: 10),
               segments: MealType.values.map((type) {
                 return ButtonSegment<MealType>(
                   value: type,
                   label: Text(type.displayName,
-                      style: const TextStyle(fontSize: 8)),
+                      style: const TextStyle(fontSize: 6)),
                   icon: Icon(type.icon, size: 10),
                 );
               }).toList(),
@@ -268,7 +289,7 @@ class _FoodSearchSheetState extends State<FoodSearchSheet>
               },
             ),
           ),
-          const SizedBox(height: 12),
+          // const SizedBox(height: 8),
           TabBar(
             controller: _tabController,
             labelStyle:

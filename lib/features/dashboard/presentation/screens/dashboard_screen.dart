@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:gym_tracker_app/core/theme/app_colors.dart';
 import 'package:gym_tracker_app/features/profile/presentation/providers/profile_provider.dart';
 import 'package:gym_tracker_app/features/diet/presentation/providers/diet_provider.dart';
 import 'package:gym_tracker_app/features/workout/presentation/providers/workout_provider.dart';
 import 'package:gym_tracker_app/features/auth/presentation/providers/auth_provider.dart';
+
 import '../widgets/calorie_ring_widget.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -76,7 +79,8 @@ class DashboardScreen extends StatelessWidget {
     final int todayIdx = now.weekday - 1; // Mon = 0, Tue = 1, Wed = 2...
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      // backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF0D1117) : Colors.grey[100],
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -92,25 +96,29 @@ class DashboardScreen extends StatelessWidget {
                     children: [
                       Text(
                         _formatTodayHeaderDate(),
-                        style: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : AppColors.textMuted,
-                            fontSize: 13),
+                        style: GoogleFonts.outfit(
+                            textStyle: TextStyle(
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : AppColors.textMuted,
+                          fontSize: 10,
+                          // fontWeight: FontWeight.bold,
+                        )),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${_getGreeting()}, $userName',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                        style: GoogleFonts.outfit(
+                            textStyle: TextStyle(
                           color: isDark ? Colors.white : AppColors.textDark,
-                        ),
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        )),
                       ),
                     ],
                   ),
                   GestureDetector(
-                    onTap: () => _navigateToTab(3),
+                    onTap: () => _navigateToTab(4),
                     child: CircleAvatar(
                       radius: 20,
                       backgroundColor: AppColors.indigoPrimary,
@@ -119,13 +127,16 @@ class DashboardScreen extends StatelessWidget {
                         style: const TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold),
                       ),
-                    ),
+                    )
+                        .animate(onPlay: (c) => c.repeat())
+                        .shimmer(duration: const Duration(seconds: 2)),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
-              // 2. Weekly Strip
+              // 2. Weekly Strip with Pulsing Organic Aura behind Active Day
+              // 2. Weekly Strip with Pulsing Organic Aura Effect for Active Day
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -141,32 +152,87 @@ class DashboardScreen extends StatelessWidget {
                   final bool hasDiet =
                       (idx == todayIdx && dietProvider.todayMeals.isNotEmpty);
                   final isDone = isPastOrToday || hasWorkout || hasDiet;
+                  final bool isActiveDay =
+                      idx == todayIdx; // Current day highlight
+
+                  final dayWidget = Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDone
+                          // ? AppColors.limeAccent
+                          ? const Color(0xFFA3E635)
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: isDone
+                            // ? AppColors.limeAccent
+                            ? const Color(0xFFA3E635)
+                            : (isDark
+                                ? Colors.grey.shade700
+                                : Colors.grey.shade300),
+                        width: 2,
+                      ),
+                    ),
+                  );
 
                   return Column(
                     children: [
-                      Text(day,
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : AppColors.textMuted)),
+                      Text(
+                        day,
+                        style: GoogleFonts.outfit(
+                          textStyle: TextStyle(
+                            color: isActiveDay
+                                // ? AppColors.limeAccent
+                                ? const Color(0xFFA3E635)
+                                : (isDark
+                                    ? Colors.grey.shade400
+                                    : AppColors.textMuted),
+                            fontSize: 10,
+                            fontWeight: isActiveDay
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      Container(
+                      SizedBox(
+                        // width: 44,
+                        // height: 44,
                         width: 32,
                         height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isDone
-                              ? AppColors.limeAccent
-                              : Colors.transparent,
-                          border: Border.all(
-                            color: isDone
-                                ? AppColors.limeAccent
-                                : (isDark
-                                    ? Colors.grey.shade700
-                                    : Colors.grey.shade300),
-                            width: 2,
-                          ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Organic pulsing aura behind active day
+                            if (isActiveDay)
+                              Container(
+                                width: 45,
+                                height: 45,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color.fromARGB(255, 149, 243, 8)
+                                      .withValues(alpha: 0.3),
+                                ),
+                              )
+                                  .animate(
+                                      onPlay: (controller) =>
+                                          controller.repeat(reverse: true))
+                                  .scale(
+                                    begin: const Offset(0.9, 0.9),
+                                    end: const Offset(1.0, 1.0),
+                                    duration:
+                                        const Duration(milliseconds: 1000),
+                                    curve: Curves.easeInOutSine,
+                                  )
+                                  .fadeIn(
+                                    begin: 0.4,
+                                    duration:
+                                        const Duration(milliseconds: 1000),
+                                  ),
+                            // The actual Day Circle
+                            Center(child: dayWidget),
+                          ],
                         ),
                       ),
                     ],
@@ -216,18 +282,42 @@ class DashboardScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(
+                height: 10,
+              ),
+              SizedBox(
+                width: double.infinity, // full width
+                // height: 220, // <-- uncomment if you want FIXED height
+                child: Card(
+                  color: isDark ? const Color(0xFF0D1117) : Colors.white,
+                  elevation: 0,
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 0,
+                      vertical:
+                          8), // <-- controls width: less horizontal = wider card
+                  shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(16)), // uncomment this
+                  child: Padding(
+                    padding: const EdgeInsets.all(
+                        20), // <-- bigger number = taller/wider card. You have only top/left/right 16
+                    child: Column(
+                      children: [
+                        _macroBar('Protein', eatenProtein, targetProtein,
+                            AppColors.proteinIndigo, isDark),
+                        const SizedBox(height: 10),
+                        _macroBar('Carbs', eatenCarbs, targetCarbs,
+                            AppColors.carbsAmber, isDark),
+                        const SizedBox(height: 10),
+                        _macroBar('Fats', eatenFats, targetFats,
+                            AppColors.fatsPink, isDark),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
-              // 4. Macro Progress Bars
-              _macroBar('Protein', eatenProtein, targetProtein,
-                  AppColors.proteinIndigo, isDark),
-              const SizedBox(height: 10),
-              _macroBar('Carbs', eatenCarbs, targetCarbs, AppColors.carbsAmber,
-                  isDark),
-              const SizedBox(height: 10),
-              _macroBar(
-                  'Fats', eatenFats, targetFats, AppColors.fatsPink, isDark),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // 5. 2x2 KPI Grid Tiles
               Row(
@@ -298,7 +388,7 @@ class DashboardScreen extends StatelessWidget {
                             'NEXT WORKOUT',
                             style: TextStyle(
                                 color: Colors.white70,
-                                fontSize: 10,
+                                fontSize: 8,
                                 letterSpacing: 1),
                           ),
                           const SizedBox(height: 2),
@@ -309,7 +399,7 @@ class DashboardScreen extends StatelessWidget {
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -322,14 +412,18 @@ class DashboardScreen extends StatelessWidget {
                         foregroundColor: AppColors.indigoPrimary,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20)),
+                        fixedSize: const Size(70, 30),
                       ),
                       onPressed: () => _navigateToTab(2),
                       child: const Text('Start',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 9)),
+                    )..animate(onPlay: (c) => c.repeat())
+                        .shimmer(duration: const Duration(seconds: 2)),
                   ],
                 ),
-              ),
+              )..animate(onPlay: (c) => c.repeat())
+                  .shimmer(duration: const Duration(seconds: 2)),
             ],
           ),
         ),
@@ -423,7 +517,9 @@ class DashboardScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : AppColors.lightCardBg,
+        color: isDark
+            ? const Color(0xFF1E1E1E)
+            : const Color.fromARGB(255, 255, 255, 255),
         borderRadius: AppColors.cardRadius,
         border: Border.all(
             color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
@@ -434,17 +530,17 @@ class DashboardScreen extends StatelessWidget {
           Text(title,
               style: TextStyle(
                   color: isDark ? Colors.grey.shade400 : AppColors.textMuted,
-                  fontSize: 12)),
+                  fontSize: 10)),
           const SizedBox(height: 6),
           Text(value,
               style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : AppColors.textDark)),
           const SizedBox(height: 4),
           Text(subtitle,
               style: TextStyle(
-                  fontSize: 11, color: subColor, fontWeight: FontWeight.w600)),
+                  fontSize: 9, color: subColor, fontWeight: FontWeight.w600)),
         ],
       ),
     );

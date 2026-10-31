@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:gym_tracker_app/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:gym_tracker_app/features/diet/presentation/screens/diet_screen.dart';
 import 'package:gym_tracker_app/features/profile/presentation/screens/profile_screen.dart';
 import 'package:gym_tracker_app/features/workout/presentation/screens/workout_screen.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../screens/dashboard_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
