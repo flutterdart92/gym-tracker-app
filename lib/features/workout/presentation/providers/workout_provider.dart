@@ -6,6 +6,7 @@ import 'package:gym_tracker_app/features/workout/data/models/exercise_model.dart
 class WorkoutProvider extends ChangeNotifier {
   List<ExerciseModel> _workouts = [];
   bool _isLoading = false;
+  String? _currentUserId; // Track active user ID
 
   List<ExerciseModel> get workouts => _workouts;
   List<ExerciseModel> get exercises => _workouts;
@@ -15,25 +16,44 @@ class WorkoutProvider extends ChangeNotifier {
     _initHiveListener();
   }
 
-  void _initHiveListener() {
-    if (Hive.isBoxOpen(HiveService.exerciseBoxName)) {
-      final box = Hive.box<ExerciseModel>(HiveService.exerciseBoxName);
-      _workouts = box.values.toList();
+  Future<void> _initHiveListener() async {
+    try {
+      final box = await _getWorkoutBox();
+      _updateWorkoutsFromBox(box);
       box.listenable().addListener(() {
-        _workouts = box.values.toList();
+        _updateWorkoutsFromBox(box);
         notifyListeners();
       });
+    } catch (e) {
+      debugPrint('Error initializing workout box listener: $e');
     }
   }
 
-  List<ExerciseModel> get todayWorkouts {
-    List<ExerciseModel> sourceList = _workouts;
-    if (sourceList.isEmpty && Hive.isBoxOpen(HiveService.exerciseBoxName)) {
-      sourceList =
-          Hive.box<ExerciseModel>(HiveService.exerciseBoxName).values.toList();
+  void _updateWorkoutsFromBox(Box<ExerciseModel> box) {
+    if (_currentUserId == null || _currentUserId!.isEmpty) {
+      _workouts = [];
+    } else {
+      _workouts = box.values
+          .where((e) => e.userId == _currentUserId || e.userId.isEmpty)
+          .toList();
     }
+  }
+
+  /// Helper to get strictly user-filtered source list
+  List<ExerciseModel> get _sourceList {
+    if (_currentUserId == null) return [];
+    if (Hive.isBoxOpen(HiveService.exerciseBoxName)) {
+      return Hive.box<ExerciseModel>(HiveService.exerciseBoxName)
+          .values
+          .where((e) => e.userId == _currentUserId || e.userId.isEmpty)
+          .toList();
+    }
+    return _workouts;
+  }
+
+  List<ExerciseModel> get todayWorkouts {
     final now = DateTime.now();
-    return sourceList.where((workout) {
+    return _sourceList.where((workout) {
       final date = workout.createdAt?.toLocal();
       if (date == null) return true;
       return date.year == now.year &&
@@ -42,94 +62,126 @@ class WorkoutProvider extends ChangeNotifier {
     }).toList();
   }
 
+  // double get todayTotalVolume {
+  //   double total = 0.0;
+  //   for (var workout in todayWorkouts) {
+  //     if (workout.setsList != null && workout.setsList!.isNotEmpty) {
+  //       for (var setItem in workout.setsList!) {
+  //         total += (setItem.weight * setItem.reps);
+  //       }
+  //     } else {
+  //       total += (workout.weight * workout.reps * workout.sets);
+  //     }
+  //   }
+  //   return total;
+  // }
+
+  // int get todayCaloriesBurned {
+  //   if (todayWorkouts.isEmpty) return 0;
+  //   final volumeBurn = (todayTotalVolume * 0.05).round();
+  //   return volumeBurn > 0 ? volumeBurn : (todayWorkouts.length * 100);
+  // }
+
+  // String get nextWorkoutName {
+  //   final sourceList = _sourceList;
+  //   if (sourceList.isEmpty) return 'Leg Day';
+  //   final hasLegs = sourceList.any((e) => e.name.toLowerCase().contains('leg'));
+  //   if (hasLegs) return 'Leg Day';
+  //   final hasPush = sourceList.any((e) =>
+  //       e.name.toLowerCase().contains('chest') ||
+  //       e.name.toLowerCase().contains('push') ||
+  //       e.name.toLowerCase().contains('upper'));
+  //   if (hasPush) return 'Push Day';
+  //   return 'Leg Day';
+  // }
+
+  // int get nextWorkoutExerciseCount {
+  //   final sourceList = _sourceList;
+  //   final routine = nextWorkoutName.toLowerCase();
+  //   List<ExerciseModel> matching = [];
+
+  //   if (routine.contains('leg')) {
+  //     matching = sourceList
+  //         .where((e) => e.name.toLowerCase().contains('leg'))
+  //         .toList();
+  //   } else if (routine.contains('push') || routine.contains('chest')) {
+  //     matching = sourceList
+  //         .where((e) =>
+  //             e.name.toLowerCase().contains('chest') ||
+  //             e.name.toLowerCase().contains('push') ||
+  //             e.name.toLowerCase().contains('upper'))
+  //         .toList();
+  //   } else if (routine.contains('pull') || routine.contains('back')) {
+  //     matching = sourceList
+  //         .where((e) =>
+  //             e.name.toLowerCase().contains('pull') ||
+  //             e.name.toLowerCase().contains('back') ||
+  //             e.name.toLowerCase().contains('bicep'))
+  //         .toList();
+  //   }
+
+  //   if (matching.isNotEmpty) {
+  //     int totalSets = 0;
+  //     for (var e in matching) {
+  //       if (e.setsList != null && e.setsList!.isNotEmpty) {
+  //         totalSets += e.setsList!.length;
+  //       } else {
+  //         totalSets += e.sets;
+  //       }
+  //     }
+  //     return totalSets;
+  //   }
+  //   return sourceList.length;
+  // }
+
+// update
   double get todayTotalVolume {
     double total = 0.0;
     for (var workout in todayWorkouts) {
       if (workout.setsList != null && workout.setsList!.isNotEmpty) {
         for (var setItem in workout.setsList!) {
-          total += (setItem.weight * setItem.reps);
+          if (setItem.isDone) {
+            total += (setItem.weight * setItem.reps);
+          }
         }
-      } else {
-        total += (workout.weight * workout.reps * workout.sets);
       }
     }
     return total;
   }
 
   int get todayCaloriesBurned {
-    if (todayWorkouts.isEmpty) return 0;
-    final volumeBurn = (todayTotalVolume * 0.05).round();
-    return volumeBurn > 0 ? volumeBurn : (todayWorkouts.length * 100);
+    final vol = todayTotalVolume;
+    if (vol <= 0) return 0;
+    return (vol * 0.05).round();
   }
 
   String get nextWorkoutName {
-    List<ExerciseModel> sourceList = _workouts;
-    if (Hive.isBoxOpen(HiveService.exerciseBoxName)) {
-      sourceList =
-          Hive.box<ExerciseModel>(HiveService.exerciseBoxName).values.toList();
+    final sourceList = todayWorkouts;
+    if (sourceList.isEmpty) return 'Workout Session';
+
+    for (final exercise in sourceList) {
+      final sets = exercise.setsList ?? [];
+      final isAllDone = sets.isNotEmpty && sets.every((s) => s.isDone);
+      if (!isAllDone) {
+        return exercise.name;
+      }
     }
-    if (sourceList.isEmpty) return 'Leg Day';
-    final hasLegs = sourceList.any((e) => e.name.toLowerCase().contains('leg'));
-    if (hasLegs) return 'Leg Day';
-    final hasPush = sourceList.any((e) =>
-        e.name.toLowerCase().contains('chest') ||
-        e.name.toLowerCase().contains('push') ||
-        e.name.toLowerCase().contains('upper'));
-    if (hasPush) return 'Push Day';
-    return 'Leg Day';
+    return sourceList.first.name;
   }
 
-  /// Dynamically sums sets logged for the target workout routine directly from Hive
   int get nextWorkoutExerciseCount {
-    List<ExerciseModel> sourceList = _workouts;
-    if (Hive.isBoxOpen(HiveService.exerciseBoxName)) {
-      sourceList =
-          Hive.box<ExerciseModel>(HiveService.exerciseBoxName).values.toList();
+    final sourceList = todayWorkouts;
+    if (sourceList.isEmpty) return 0;
+    final activeName = nextWorkoutName;
+    final matching = sourceList.where((e) => e.name == activeName).toList();
+    if (matching.isNotEmpty && matching.first.setsList != null) {
+      return matching.first.setsList!.length;
     }
-
-    final routine = nextWorkoutName.toLowerCase();
-    List<ExerciseModel> matching = [];
-
-    if (routine.contains('leg')) {
-      matching = sourceList
-          .where((e) => e.name.toLowerCase().contains('leg'))
-          .toList();
-    } else if (routine.contains('push') || routine.contains('chest')) {
-      matching = sourceList
-          .where((e) =>
-              e.name.toLowerCase().contains('chest') ||
-              e.name.toLowerCase().contains('push') ||
-              e.name.toLowerCase().contains('upper'))
-          .toList();
-    } else if (routine.contains('pull') || routine.contains('back')) {
-      matching = sourceList
-          .where((e) =>
-              e.name.toLowerCase().contains('pull') ||
-              e.name.toLowerCase().contains('back') ||
-              e.name.toLowerCase().contains('bicep'))
-          .toList();
-    }
-
-    if (matching.isNotEmpty) {
-      int totalSets = 0;
-      for (var e in matching) {
-        if (e.setsList != null && e.setsList!.isNotEmpty) {
-          totalSets += e.setsList!.length;
-        } else {
-          totalSets += e.sets;
-        }
-      }
-      return totalSets;
-    }
-    return sourceList.length;
+    return sourceList.first.setsList?.length ?? sourceList.first.sets;
   }
 
   Set<int> get loggedDayIndices {
-    List<ExerciseModel> sourceList = _workouts;
-    if (Hive.isBoxOpen(HiveService.exerciseBoxName)) {
-      sourceList =
-          Hive.box<ExerciseModel>(HiveService.exerciseBoxName).values.toList();
-    }
+    final sourceList = _sourceList;
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
     final startOfWeek = DateTime(monday.year, monday.month, monday.day);
@@ -147,13 +199,8 @@ class WorkoutProvider extends ChangeNotifier {
     return indices;
   }
 
-  /// Total workout entries logged this week directly from Hive storage
   int get weeklyWorkoutsDone {
-    List<ExerciseModel> sourceList = _workouts;
-    if (Hive.isBoxOpen(HiveService.exerciseBoxName)) {
-      sourceList =
-          Hive.box<ExerciseModel>(HiveService.exerciseBoxName).values.toList();
-    }
+    final sourceList = _sourceList;
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
     final startOfWeek = DateTime(monday.year, monday.month, monday.day);
@@ -164,22 +211,15 @@ class WorkoutProvider extends ChangeNotifier {
       return loc.isAfter(startOfWeek.subtract(const Duration(seconds: 1)));
     }).length;
 
-    return count > 0 ? count : sourceList.length;
+    return count;
   }
 
   int get weeklyWorkoutGoal => 4;
 
-  /// Dynamic login & workout streak calculation
   int get currentStreak {
-    List<ExerciseModel> sourceList = _workouts;
-    if (Hive.isBoxOpen(HiveService.exerciseBoxName)) {
-      sourceList =
-          Hive.box<ExerciseModel>(HiveService.exerciseBoxName).values.toList();
-    }
-
+    final sourceList = _sourceList;
     final activeDates = <DateTime>{};
 
-    // 1. Collect all dates from logged workouts
     for (var w in sourceList) {
       if (w.createdAt != null) {
         final loc = w.createdAt!.toLocal();
@@ -187,23 +227,13 @@ class WorkoutProvider extends ChangeNotifier {
       }
     }
 
-    // 2. Include filled days from the weekly strip (Mon, Tue, Wed)
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final monday = today.subtract(Duration(days: now.weekday - 1));
-
-    for (int i = 0; i < now.weekday; i++) {
-      activeDates.add(monday.add(Duration(days: i)));
-    }
-
     if (activeDates.isEmpty) return 0;
 
-    // 3. Sort dates in descending order (newest first)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final sortedDates = activeDates.toList()..sort((a, b) => b.compareTo(a));
-
     final yesterday = today.subtract(const Duration(days: 1));
 
-    // If neither today nor yesterday has activity, streak is broken
     if (!sortedDates.contains(today) && !sortedDates.contains(yesterday)) {
       return 0;
     }
@@ -211,7 +241,6 @@ class WorkoutProvider extends ChangeNotifier {
     int streak = 0;
     DateTime checkDate = sortedDates.contains(today) ? today : yesterday;
 
-    // Count consecutive days backward
     while (sortedDates.contains(checkDate)) {
       streak++;
       checkDate = checkDate.subtract(const Duration(days: 1));
@@ -220,7 +249,43 @@ class WorkoutProvider extends ChangeNotifier {
     return streak;
   }
 
-  int get bestStreak => currentStreak > 14 ? currentStreak : 14;
+  int get bestStreak {
+    final sourceList = _sourceList;
+    final activeDates = <DateTime>{};
+
+    for (var w in sourceList) {
+      if (w.createdAt != null) {
+        final loc = w.createdAt!.toLocal();
+        activeDates.add(DateTime(loc.year, loc.month, loc.day));
+      }
+    }
+
+    if (activeDates.isEmpty) return 0;
+
+    final sortedDates = activeDates.toList()..sort((a, b) => a.compareTo(b));
+    int maxStreak = 0;
+    int currentRun = 0;
+    DateTime? prevDate;
+
+    for (var date in sortedDates) {
+      if (prevDate == null) {
+        currentRun = 1;
+      } else {
+        final diff = date.difference(prevDate).inDays;
+        if (diff == 1) {
+          currentRun++;
+        } else if (diff > 1) {
+          currentRun = 1;
+        }
+      }
+      prevDate = date;
+      if (currentRun > maxStreak) {
+        maxStreak = currentRun;
+      }
+    }
+
+    return maxStreak > currentStreak ? maxStreak : currentStreak;
+  }
 
   Future<Box<ExerciseModel>> _getWorkoutBox() async {
     if (Hive.isBoxOpen(HiveService.exerciseBoxName)) {
@@ -233,6 +298,7 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   Future<void> loadUserWorkouts(String userId) async {
+    _currentUserId = userId;
     _isLoading = true;
     notifyListeners();
     try {
@@ -251,6 +317,12 @@ class WorkoutProvider extends ChangeNotifier {
   Future<void> addWorkout(ExerciseModel exercise) async {
     try {
       final box = await _getWorkoutBox();
+
+      // Safe stamp if userId is empty and current user is active
+      if (exercise.userId.isEmpty && _currentUserId != null) {
+        exercise.userId = _currentUserId!;
+      }
+
       await box.put(exercise.id, exercise);
       if (!_workouts.any((e) => e.id == exercise.id)) {
         _workouts.add(exercise);
@@ -277,7 +349,11 @@ class WorkoutProvider extends ChangeNotifier {
   Future<void> clearAllWorkouts() async {
     try {
       final box = await _getWorkoutBox();
-      await box.clear();
+      final keysToDelete = box.values
+          .where((e) => e.userId == _currentUserId)
+          .map((e) => e.key)
+          .toList();
+      await box.deleteAll(keysToDelete);
       _workouts.clear();
       notifyListeners();
     } catch (e) {
@@ -286,6 +362,7 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   void resetState() {
+    _currentUserId = null;
     _workouts.clear();
     notifyListeners();
   }

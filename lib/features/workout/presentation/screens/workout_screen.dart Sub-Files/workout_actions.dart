@@ -222,6 +222,7 @@ class WorkoutActions {
     messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
+        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

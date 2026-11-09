@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:gym_tracker_app/core/animations/app_animations.dart';
 import '../providers/auth_provider.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -11,9 +13,11 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends State<AuthScreen> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   bool _isSignUp = false;
+  int _animationTriggerKey =
+      0; // Forces animations to replay on mode switch or app resume
 
   AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
 
@@ -36,7 +40,14 @@ class _AuthScreenState extends State<AuthScreen> {
   final RegExp _emailRegex = RegExp(r'^[\w.+-]+@[\w-]+(\.[\w-]+)+$');
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
@@ -51,6 +62,19 @@ class _AuthScreenState extends State<AuthScreen> {
 
     _lockoutTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Replay entrance animations when app is minimized and reopened
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) {
+        setState(() {
+          _animationTriggerKey++;
+        });
+      }
+    }
   }
 
   void _startLockoutTimer() {
@@ -205,6 +229,30 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final theme = Theme.of(context);
+    final bool reduceMotion = AppAnimations.shouldReduceMotion(context);
+
+    // Staggered entry helper with unique keys to force re-animation on mode toggle or app resume
+    Widget staggerField(Widget child, int index, {Duration? customDelay}) {
+      if (reduceMotion) return child;
+      // final delayMs = index * AppAnimations.staggerDelay.inMilliseconds;
+      final delayMs = customDelay?.inMilliseconds ??
+          (index * AppAnimations.staggerDelay.inMilliseconds);
+      return child
+          .animate(
+              key: ValueKey('field-$index-$_isSignUp-$_animationTriggerKey'))
+          .fadeIn(
+            duration: const Duration(milliseconds: 400),
+            delay: Duration(milliseconds: delayMs),
+            curve: AppAnimations.easeOutCubic,
+          )
+          .slideY(
+            begin: 0.1,
+            end: 0.0,
+            duration: const Duration(milliseconds: 400),
+            delay: Duration(milliseconds: delayMs),
+            curve: AppAnimations.easeOutCubic,
+          );
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -219,24 +267,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // --- HERO BRAND IDENTITY HEADER ---
+                  // --- HERO BRAND IDENTITY HEADER (Logo Scale & Fade 600-800ms) ---
                   Center(
                     child: Container(
-                      padding: const EdgeInsets.all(0),
-                      // decoration: BoxDecoration(
-                      //   color: theme.colorScheme.primaryContainer,
-                      //   // shape: BoxShape.circle,
-                      //   boxShadow: [
-                      //     BoxShadow(
-                      //       color: theme.colorScheme.primary
-                      //           .withValues(alpha: 0.15),
-                      //       blurRadius: 16,
-                      //       offset: const Offset(0, 6),
-                      //     ),
-                      //   ],
-                      // ),
                       child: Image.asset(
-                        'assets/icon/fitlife_logo.png', // Replace with your actual asset path
+                        'assets/icon/fitlife_logo.png',
                         width: 200,
                         height: 200,
                         fit: BoxFit.contain,
@@ -246,317 +281,360 @@ class _AuthScreenState extends State<AuthScreen> {
                           color: theme.colorScheme.primary,
                         ),
                       ),
-
-                      //  Icon(
-                      //   Icons.fitness_center_rounded,
-                      //   size: 48,
-                      //   color: theme.colorScheme.primary,
-                      // ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Fit Life',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
+                  )
+                      .animate(
+                        key: ValueKey('logo-$_animationTriggerKey'),
+                        target: reduceMotion ? 0 : 1,
+                      )
+                      .fadeIn(
+                        duration: const Duration(milliseconds: 700),
+                        curve: AppAnimations.easeOutCubic,
+                      )
+                      .scale(
+                        begin: const Offset(0.8, 0.8),
+                        end: const Offset(1.0, 1.0),
+                        duration: const Duration(milliseconds: 700),
+                        curve: AppAnimations.easeOutCubic,
+                      ),
                   const SizedBox(height: 6),
-                  Text(
-                    _isSignUp
-                        ? 'Create your account to start tracking progress.'
-                        : 'Track workouts, count macros, and reach your goals.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  staggerField(
+                    Text(
+                      _isSignUp
+                          ? 'Create your account to start tracking progress.'
+                          : 'Track workouts, count macros, and reach your goals.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
+                    1,
                   ),
                   const SizedBox(height: 28),
 
                   // --- SIGN UP FIELDS ---
                   if (_isSignUp) ...[
-                    TextFormField(
-                      controller: _nameController,
-                      focusNode: _nameFocusNode,
-                      textInputAction: TextInputAction.next,
-                      onFieldSubmitted: (_) =>
-                          FocusScope.of(context).requestFocus(_emailFocusNode),
-                      decoration: InputDecoration(
-                        labelText: 'Full Name',
-                        prefixIcon: const Icon(Icons.person_outline),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    staggerField(
+                      TextFormField(
+                        controller: _nameController,
+                        focusNode: _nameFocusNode,
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (_) => FocusScope.of(context)
+                            .requestFocus(_emailFocusNode),
+                        decoration: InputDecoration(
+                          labelText: 'Full Name',
+                          prefixIcon: const Icon(Icons.person_outline),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Enter your name'
+                            : null,
                       ),
-                      validator: (val) => val == null || val.trim().isEmpty
-                          ? 'Enter your name'
-                          : null,
+                      2,
                     ),
                     const SizedBox(height: 12),
                   ],
 
                   // --- EMAIL FIELD ---
-                  TextFormField(
-                    controller: _emailController,
-                    focusNode: _emailFocusNode,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    onFieldSubmitted: (_) =>
-                        FocusScope.of(context).requestFocus(_passwordFocusNode),
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: InputDecoration(
-                      labelText: 'Email Address',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  staggerField(
+                    TextFormField(
+                      controller: _emailController,
+                      focusNode: _emailFocusNode,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) => FocusScope.of(context)
+                          .requestFocus(_passwordFocusNode),
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      decoration: InputDecoration(
+                        labelText: 'Email Address',
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Enter your email address';
-                      }
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Enter your email address';
+                        }
 
-                      final trimmedEmail = val.trim().toLowerCase();
-                      if (!_emailRegex.hasMatch(trimmedEmail)) {
-                        return 'Enter a valid email address';
-                      }
-                      return null;
-                    },
+                        final trimmedEmail = val.trim().toLowerCase();
+                        if (!_emailRegex.hasMatch(trimmedEmail)) {
+                          return 'Enter a valid email address';
+                        }
+                        return null;
+                      },
+                    ),
+                    _isSignUp ? 3 : 2,
+                    customDelay: const Duration(
+                        milliseconds: 300), // <-- Custom delay just for email!
                   ),
                   const SizedBox(height: 12),
 
                   // --- PASSWORD FIELD ---
-                  PasswordTextField(
-                    controller: _passwordController,
-                    focusNode: _passwordFocusNode,
-                    label: 'Password',
-                    isSignUp: _isSignUp,
-                    textInputAction:
-                        _isSignUp ? TextInputAction.next : TextInputAction.done,
-                    onFieldSubmitted: (_) {
-                      if (_isSignUp) {
-                        FocusScope.of(context).requestFocus(_ageFocusNode);
-                      } else {
-                        _submit();
-                      }
-                    },
+                  staggerField(
+                    PasswordTextField(
+                      controller: _passwordController,
+                      focusNode: _passwordFocusNode,
+                      label: 'Password',
+                      isSignUp: _isSignUp,
+                      textInputAction: _isSignUp
+                          ? TextInputAction.next
+                          : TextInputAction.done,
+                      onFieldSubmitted: (_) {
+                        if (_isSignUp) {
+                          FocusScope.of(context).requestFocus(_ageFocusNode);
+                        } else {
+                          _submit();
+                        }
+                      },
+                    ),
+                    _isSignUp ? 4 : 3,
                   ),
 
-                  // --- FORGOT PASSWORD LINK & LOCKOUT MSG ---
+                  // --- FORGOT PASSWORD LINK & LOCKOUT MSG (NOW STAGGERED) ---
                   if (!_isSignUp) ...[
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _showForgotPasswordDialog,
-                        child: Text(
-                          'Forgot password?',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
+                    staggerField(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _showForgotPasswordDialog,
+                              child: Text(
+                                'Forgot password?',
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          if (authProvider.isLockedOut)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                'Too many failed login attempts.\nTry again in ${authProvider.lockoutSecondsRemaining}s',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                        ],
                       ),
+                      4,
                     ),
-                    if (authProvider.isLockedOut)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text(
-                          'Too many failed login attempts.\nTry again in ${authProvider.lockoutSecondsRemaining}s',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              color: Colors.red, fontWeight: FontWeight.bold),
-                        ),
-                      ),
                   ],
 
                   // --- SIGN UP BODY STATS FIELDS ---
                   if (_isSignUp) ...[
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _ageController,
-                            focusNode: _ageFocusNode,
-                            textInputAction: TextInputAction.next,
-                            onFieldSubmitted: (_) => FocusScope.of(context)
-                                .requestFocus(_weightFocusNode),
-                            decoration: InputDecoration(
-                              labelText: 'Age',
-                              prefixIcon: const Icon(Icons.cake_outlined),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                    staggerField(
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _ageController,
+                              focusNode: _ageFocusNode,
+                              textInputAction: TextInputAction.next,
+                              onFieldSubmitted: (_) => FocusScope.of(context)
+                                  .requestFocus(_weightFocusNode),
+                              decoration: InputDecoration(
+                                labelText: 'Age',
+                                prefixIcon: const Icon(Icons.cake_outlined),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
+                              validator: (v) {
+                                final n = int.tryParse(v ?? '');
+                                if (n == null || n < 13 || n > 100) {
+                                  return '13 - 100';
+                                }
+                                return null;
+                              },
                             ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            validator: (v) {
-                              final n = int.tryParse(v ?? '');
-                              if (n == null || n < 13 || n > 100) {
-                                return '13 - 100';
-                              }
-                              return null;
-                            },
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _weightController,
-                            focusNode: _weightFocusNode,
-                            textInputAction: TextInputAction.done,
-                            onFieldSubmitted: (_) => _submit(),
-                            decoration: InputDecoration(
-                              labelText: 'Weight (kg)',
-                              prefixIcon: const Icon(Icons.scale_outlined),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _weightController,
+                              focusNode: _weightFocusNode,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) => _submit(),
+                              decoration: InputDecoration(
+                                labelText: 'Weight (kg)',
+                                prefixIcon: const Icon(Icons.scale_outlined),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d*\.?\d*')),
+                              ],
+                              validator: (v) {
+                                final n = double.tryParse(v ?? '');
+                                if (n == null || n < 30 || n > 300) {
+                                  return '30 - 300 kg';
+                                }
+                                return null;
+                              },
                             ),
-                            keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                  RegExp(r'^\d*\.?\d*')),
-                            ],
-                            validator: (v) {
-                              final n = double.tryParse(v ?? '');
-                              if (n == null || n < 30 || n > 300) {
-                                return '30 - 300 kg';
-                              }
-                              return null;
-                            },
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      5,
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _fitnessGoal,
-                      decoration: InputDecoration(
-                        labelText: 'Fitness Goal',
-                        prefixIcon: const Icon(Icons.fitness_center_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    staggerField(
+                      DropdownButtonFormField<String>(
+                        initialValue: _fitnessGoal,
+                        decoration: InputDecoration(
+                          labelText: 'Fitness Goal',
+                          prefixIcon: const Icon(Icons.fitness_center_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
+                        items: _goals
+                            .map((goal) => DropdownMenuItem(
+                                  value: goal,
+                                  child: Text(goal),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _fitnessGoal = val);
+                        },
                       ),
-                      items: _goals
-                          .map((goal) => DropdownMenuItem(
-                                value: goal,
-                                child: Text(goal),
-                              ))
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) setState(() => _fitnessGoal = val);
-                      },
+                      6,
                     ),
                   ],
 
                   const SizedBox(height: 24),
 
                   // --- PRIMARY SUBMIT BUTTON ---
-                  authProvider.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : ElevatedButton(
-                          onPressed: (!_isSignUp && authProvider.isLockedOut)
-                              ? null
-                              : _submit,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                  staggerField(
+                    authProvider.isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : ElevatedButton(
+                            onPressed: (!_isSignUp && authProvider.isLockedOut)
+                                ? null
+                                : _submit,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              backgroundColor: theme.colorScheme.primary,
+                              foregroundColor: theme.colorScheme.onPrimary,
+                              elevation: 2,
                             ),
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: theme.colorScheme.onPrimary,
-                            elevation: 2,
+                            child: Text(
+                              _isSignUp ? 'Create Account' : 'Log In',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
                           ),
-                          child: Text(
-                            _isSignUp ? 'Create Account' : 'Log In',
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                    _isSignUp ? 7 : 5,
+                  ),
 
                   // --- GOOGLE SIGN IN (LOGIN MODE ONLY) ---
                   if (!_isSignUp) ...[
                     const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: Divider(
-                                color: theme.colorScheme.outlineVariant)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(
-                            'OR',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.outline,
+                    staggerField(
+                      Row(
+                        children: [
+                          Expanded(
+                              child: Divider(
+                                  color: theme.colorScheme.outlineVariant)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'OR',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.outline,
+                              ),
                             ),
                           ),
-                        ),
-                        Expanded(
-                            child: Divider(
-                                color: theme.colorScheme.outlineVariant)),
-                      ],
+                          Expanded(
+                              child: Divider(
+                                  color: theme.colorScheme.outlineVariant)),
+                        ],
+                      ),
+                      6,
                     ),
                     const SizedBox(height: 20),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    staggerField(
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(color: theme.colorScheme.outline),
                         ),
-                        side: BorderSide(color: theme.colorScheme.outline),
-                      ),
-                      onPressed:
-                          authProvider.isLoading ? null : _handleGoogleSignIn,
-                      icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
-                      label: Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
+                        onPressed:
+                            authProvider.isLoading ? null : _handleGoogleSignIn,
+                        icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
+                        label: Text(
+                          'Continue with Google',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
                       ),
+                      7,
                     ),
                   ],
 
                   const SizedBox(height: 20),
 
                   // --- MODE TOGGLE BUTTON ---
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _isSignUp = !_isSignUp;
-                        _autovalidateMode = AutovalidateMode.disabled;
-                      });
-                    },
-                    child: Text.rich(
-                      TextSpan(
-                        text: _isSignUp
-                            ? 'Already have an account? '
-                            : "Don't have an account? ",
-                        style: TextStyle(
-                            color: theme.colorScheme.onSurfaceVariant),
-                        children: [
-                          TextSpan(
-                            text: _isSignUp ? 'Log In' : 'Sign Up',
-                            style: TextStyle(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.bold,
+                  staggerField(
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _isSignUp = !_isSignUp;
+                          _autovalidateMode = AutovalidateMode.disabled;
+                        });
+                      },
+                      child: Text.rich(
+                        TextSpan(
+                          text: _isSignUp
+                              ? 'Already have an account? '
+                              : "Don't have an account? ",
+                          style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant),
+                          children: [
+                            TextSpan(
+                              text: _isSignUp ? 'Log In' : 'Sign Up',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
+                    _isSignUp ? 8 : 8,
                   ),
                 ],
               ),

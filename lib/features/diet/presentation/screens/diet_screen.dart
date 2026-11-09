@@ -1,18 +1,14 @@
-// ignore_for_file: camel_case_types, library_private_types_in_public_api
+// ignore_for_file: curly_braces_in_flow_control_structures, camel_case_types, library_private_types_in_public_api
 
-import 'dart:ui';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
-// import 'package:flutter_scale_tap/flutter_scale_tap.dart';
 import 'package:gap/gap.dart';
 import 'package:gym_tracker_app/features/diet/presentation/providers/diet_provider.dart';
-
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
 import '../../../../core/services/hive_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -22,7 +18,6 @@ import '../../data/models/meal_type.dart';
 import '../../data/services/diet_service.dart';
 import '../widgets/food_search_sheet.dart';
 import 'barcode_scanner_screen.dart';
-// import 'package:ripple_wave/ripple_wave.dart';
 
 class DietScreen extends StatefulWidget {
   const DietScreen({super.key});
@@ -35,6 +30,7 @@ class _DietScreenState extends State<DietScreen> {
   final DietService _dietService = DietService();
   String _selectedFilter = 'Recent';
   bool _shouldAnimateList = false;
+  // bool _isLoading = true;
 
   // Tracking variable for the newly added meal ID
   String? _newlyAddedMealId;
@@ -111,12 +107,9 @@ class _DietScreenState extends State<DietScreen> {
 
   void _showMealLoggedSuccess(BuildContext context, String mealId) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // 1. Show the success dialog FIRST (do not set _newlyAddedMealId yet so it doesn't animate behind the dialog)
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      // barrierColor: Colors.white.withValues(alpha: 1.0),
-      // barrierColor: Colors.white.withValues(alpha: 1.0),
       barrierColor: isDark
           ? Colors.black.withValues(alpha: 1.0)
           : Colors.white.withValues(alpha: 1.0),
@@ -133,8 +126,6 @@ class _DietScreenState extends State<DietScreen> {
                   height: 130,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    // color: const Color.fromARGB(255, 181, 255, 187)
-                    //     .withValues(alpha: 0.5),
                     color: isDark
                         ? const Color.fromARGB(255, 0, 137, 50)
                         : const Color.fromARGB(255, 181, 255, 187)
@@ -145,7 +136,6 @@ class _DietScreenState extends State<DietScreen> {
                       width: 110,
                       height: 110,
                       decoration: BoxDecoration(
-                        // color: Color.fromARGB(255, 0, 137, 50),
                         color: isDark
                             ? const Color.fromARGB(255, 127, 255, 138)
                             : const Color.fromARGB(255, 0, 137, 50),
@@ -171,7 +161,6 @@ class _DietScreenState extends State<DietScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    // color: Colors.black,
                     color: isDark
                         ? Colors.white.withValues(alpha: 1.0)
                         : Colors.black.withValues(alpha: 1.0),
@@ -197,22 +186,14 @@ class _DietScreenState extends State<DietScreen> {
       },
     );
 
-    //   Future.delayed(const Duration(milliseconds: 1500), () {
-    //     if (context.mounted) {
-    //       Navigator.of(context, rootNavigator: true).pop();
-    //     }
-    //   });
-    // }
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
 
-        // Trigger slide-in animation right as the popup disappears
         setState(() {
           _newlyAddedMealId = mealId;
         });
 
-        // Clear the new meal ID after animations complete
         Future.delayed(const Duration(milliseconds: 2500), () {
           if (mounted && _newlyAddedMealId == mealId) {
             setState(() {
@@ -318,12 +299,6 @@ class _DietScreenState extends State<DietScreen> {
   void _openFoodSearchSheet(BuildContext context, String userId,
       {MealType? initialType}) {
     showModalBottomSheet(
-      // backgroundColor: Colors.red,
-      // barrierColor: Colors.red,
-      // sheetAnimationStyle: ,
-      // transitionAnimationController:
-      // ,
-
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -335,7 +310,6 @@ class _DietScreenState extends State<DietScreen> {
         onMealSelected: (meal) async {
           await _dietService.addMeal(meal);
           if (context.mounted) {
-            // _showMealLoggedSuccess(context);
             _showMealLoggedSuccess(context, meal.id);
           }
         },
@@ -438,7 +412,6 @@ class _DietScreenState extends State<DietScreen> {
                     await _dietService.addMeal(meal);
                     if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                     if (mounted) {
-                      // _showMealLoggedSuccess(context);
                       _showMealLoggedSuccess(context, meal.id);
                     }
                   },
@@ -468,8 +441,8 @@ class _DietScreenState extends State<DietScreen> {
       {MealModel? existingMeal, MealType? defaultType}) {
     final modalFormKey = GlobalKey<FormState>();
     AutovalidateMode modalAutovalidateMode = AutovalidateMode.disabled;
+    bool modalShouldShake = false;
 
-    // Hidden controllers still needed for saving
     if (existingMeal != null) {
       _nameController.text = existingMeal.name;
       final double derivedQty = _getMealQuantity(existingMeal);
@@ -484,25 +457,13 @@ class _DietScreenState extends State<DietScreen> {
       _selectedMealType = _getMealType(existingMeal);
     } else {
       _selectedMealType = defaultType ?? MealType.breakfast;
-      if (_selectedMealType == MealType.breakfast) {
-        _nameController.text = 'Oatmeal';
-        _caloriesController.text = '380';
-      } else {
-        _nameController.text = 'Chicken Rice Bowl';
-        _caloriesController.text = '620';
-      }
-      // Initialize hidden fields from kcal
-      _quantityController.text =
-          _selectedMealType == MealType.breakfast ? '80' : '1';
-      if (_selectedMealType == MealType.breakfast) {
-        _proteinController.text = '14';
-        _carbsController.text = '60';
-        _fatsController.text = '8.0';
-      } else {
-        _proteinController.text = '45';
-        _carbsController.text = '70';
-        _fatsController.text = '18.0';
-      }
+      // Start fields empty so hint texts ("e.g. Oatmeal", "e.g. 380") appear cleanly
+      _nameController.clear();
+      _caloriesController.clear();
+      _quantityController.clear();
+      _proteinController.clear();
+      _carbsController.clear();
+      _fatsController.clear();
     }
 
     void updateFromKcal(String kcalStr) {
@@ -515,13 +476,11 @@ class _DietScreenState extends State<DietScreen> {
         return;
       }
       final bool isBreakfast = _selectedMealType == MealType.breakfast;
-      // also check name contains oatmeal
       final nameLower = _nameController.text.trim().toLowerCase();
       final bool useBreakfastFormula =
           isBreakfast || nameLower.contains('oatmeal');
 
       if (useBreakfastFormula) {
-        // Base: 80g = 380kcal, 14P, 60C, 8F
         final multiplier = kcal / 380.0;
         final qty = 80.0 * multiplier;
         _quantityController.text =
@@ -530,7 +489,6 @@ class _DietScreenState extends State<DietScreen> {
         _carbsController.text = (60 * multiplier).toStringAsFixed(1);
         _fatsController.text = (8 * multiplier).toStringAsFixed(1);
       } else {
-        // Base: 1 bowl = 620kcal, 45P, 70C, 18F
         final multiplier = kcal / 620.0;
         _quantityController.text = multiplier % 1 == 0
             ? multiplier.toInt().toString()
@@ -541,15 +499,14 @@ class _DietScreenState extends State<DietScreen> {
       }
     }
 
-    // Ensure initial hidden fields match initial kcal
-    updateFromKcal(_caloriesController.text);
+    if (_caloriesController.text.isNotEmpty) {
+      updateFromKcal(_caloriesController.text);
+    }
 
     showModalBottomSheet(
       context: outerContext,
       isScrollControlled: true,
-      // backgroundColor: Colors.transparent,
       backgroundColor: Colors.transparent,
-
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -597,11 +554,9 @@ class _DietScreenState extends State<DietScreen> {
 
             return Container(
               decoration: BoxDecoration(
-                // color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                 color: isDark
                     ? const Color.fromARGB(255, 19, 19, 19)
                     : Colors.grey.shade200,
-
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(28)),
               ),
@@ -621,7 +576,6 @@ class _DietScreenState extends State<DietScreen> {
                     children: [
                       Center(
                         child: Container(
-                          // color: Colors.red,
                           width: 36,
                           height: 4,
                           decoration: BoxDecoration(
@@ -663,120 +617,65 @@ class _DietScreenState extends State<DietScreen> {
                           ),
                         ],
                       ),
-                      // const SizedBox(height: 20),
-                      // Text('Category',
-                      //     style: TextStyle(
-                      //         fontWeight: FontWeight.bold,
-                      //         fontSize: 12,
-                      //         color: isDark ? Colors.white70 : Colors.black87)),
-                      // const SizedBox(height: 10),
-                      // SegmentedButton<MealType>(
-                      //   showSelectedIcon: false,
-                      //   style: ButtonStyle(
-                      //     backgroundColor:
-                      //         WidgetStateProperty.resolveWith((states) {
-                      //       if (states.contains(WidgetState.selected))
-                      //         return AppColors.indigoPrimary;
-                      //       return isDark
-                      //           ? const Color(0xFF2A2A2A)
-                      //           : const Color(0xFFF2F3F7);
-                      //     }),
-                      //     foregroundColor:
-                      //         WidgetStateProperty.resolveWith((states) {
-                      //       if (states.contains(WidgetState.selected))
-                      //         return Colors.white;
-                      //       return isDark
-                      //           ? Colors.grey.shade300
-                      //           : AppColors.textMuted;
-                      //     }),
-                      //     side: WidgetStateProperty.all(
-                      //         const BorderSide(color: Colors.transparent)),
-                      //     shape: WidgetStateProperty.all(RoundedRectangleBorder(
-                      //         borderRadius: BorderRadius.circular(12))),
-                      //     visualDensity: VisualDensity.compact,
-                      //   ),
-                      //   segments: MealType.values.map((type) {
-                      //     final bool isSelected = _selectedMealType == type;
-                      //     return ButtonSegment<MealType>(
-                      //       value: type,
-                      //       label: Row(
-                      //         mainAxisSize: MainAxisSize.min,
-                      //         children: [
-                      //           if (isSelected)
-                      //             const Icon(Icons.check,
-                      //                 size: 14, color: Colors.white),
-                      //           if (isSelected) const SizedBox(width: 4),
-                      //           Icon(type.icon, size: 14),
-                      //           const SizedBox(width: 4),
-                      //           Text(type.displayName,
-                      //               style: const TextStyle(
-                      //                   fontSize: 11,
-                      //                   fontWeight: FontWeight.w600)),
-                      //         ],
-                      //       ),
-                      //     );
-                      //   }).toList(),
-                      //   selected: {_selectedMealType},
-                      //   onSelectionChanged: (Set<MealType> selection) {
-                      //     setModalState(() {
-                      //       _selectedMealType = selection.first;
-                      //       if (_selectedMealType == MealType.breakfast) {
-                      //         _nameController.text = 'Oatmeal';
-                      //         if (_caloriesController.text.isEmpty)
-                      //           _caloriesController.text = '380';
-                      //       } else if (_selectedMealType == MealType.lunch ||
-                      //           _selectedMealType == MealType.dinner) {
-                      //         _nameController.text = 'Chicken Rice Bowl';
-                      //         if (_caloriesController.text.isEmpty)
-                      //           _caloriesController.text = '620';
-                      //       }
-                      //       updateFromKcal(_caloriesController.text);
-                      //     });
-                      //   },
-                      // ),
                       const SizedBox(height: 20),
-                      // ONLY 2 FIELDS VISIBLE - MEAL NAME + KCAL (TARGET)
-                      TextFormField(
-                        controller: _nameController,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                        decoration: fieldDecoration(
-                            label: 'Meal Name',
-                            hint:
-                                'e.g. Oatmeal, Chicken Rice Bowl, protien shake'),
-                        onChanged: (val) {
-                          setModalState(() {
-                            updateFromKcal(_caloriesController.text);
-                          });
-                        },
-                        validator: (val) => (val == null || val.trim().isEmpty)
-                            ? 'Enter meal name'
-                            : null,
+                      ShakeWidget(
+                        shouldShake: modalShouldShake,
+                        onShakeComplete: () =>
+                            setModalState(() => modalShouldShake = false),
+                        child: TextFormField(
+                          controller: _nameController,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  isDark ? Colors.white : AppColors.textDark),
+                          decoration: fieldDecoration(
+                              label: 'Meal Name',
+                              hint:
+                                  'e.g. Oatmeal, Chicken Rice Bowl, protein shake'),
+                          onChanged: (val) {
+                            setModalState(() {
+                              updateFromKcal(_caloriesController.text);
+                            });
+                          },
+                          validator: (val) =>
+                              (val == null || val.trim().isEmpty)
+                                  ? 'Enter meal name'
+                                  : null,
+                        ),
                       ),
                       const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _caloriesController,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                        decoration: fieldDecoration(
-                            label: 'Calories (kcal)',
-                            hint: 'e.g. 380',
-                            suffix: 'kcal'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                        onChanged: (val) {
-                          setModalState(() {
-                            updateFromKcal(val);
-                          });
-                        },
-                        validator: (val) => (val == null || val.trim().isEmpty)
-                            ? 'Enter calories'
-                            : null,
+                      ShakeWidget(
+                        shouldShake: modalShouldShake,
+                        onShakeComplete: () =>
+                            setModalState(() => modalShouldShake = false),
+                        child: TextFormField(
+                          controller: _caloriesController,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  isDark ? Colors.white : AppColors.textDark),
+                          decoration: fieldDecoration(
+                              label: 'Calories (kcal)',
+                              hint: 'e.g. 380',
+                              suffix: 'kcal'),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          onChanged: (val) {
+                            setModalState(() {
+                              updateFromKcal(val);
+                            });
+                          },
+                          validator: (val) =>
+                              (val == null || val.trim().isEmpty)
+                                  ? 'Enter calories'
+                                  : null,
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      // Auto-calculated preview (optional but helps confirm target logic)
                       if (_caloriesController.text.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -800,7 +699,7 @@ class _DietScreenState extends State<DietScreen> {
                           ),
                         ),
                       const SizedBox(height: 24),
-                      _HapticScaleButton(
+                      _DietScaleButton(
                         onPressed: () async {
                           setModalState(() {
                             modalAutovalidateMode =
@@ -850,6 +749,7 @@ class _DietScreenState extends State<DietScreen> {
                             }
                           } else {
                             HapticFeedback.heavyImpact();
+                            setModalState(() => modalShouldShake = true);
                           }
                         },
                         child: Text(
@@ -876,6 +776,7 @@ class _DietScreenState extends State<DietScreen> {
       {MealModel? existingMeal}) {
     final modalFormKey = GlobalKey<FormState>();
     AutovalidateMode modalAutovalidateMode = AutovalidateMode.disabled;
+    bool modalShouldShake = false;
 
     if (existingMeal != null) {
       _snackNameController.text = existingMeal.name;
@@ -883,9 +784,10 @@ class _DietScreenState extends State<DietScreen> {
       _scoopController.text = (existingMeal.calories / 220).toStringAsFixed(1);
       _selectedMealType = _getMealType(existingMeal);
     } else {
-      _snackNameController.text = 'protein shake';
-      _snackCaloriesController.text = '220';
-      _scoopController.text = '1';
+      // Clear fields to reveal clean hint texts
+      _snackNameController.clear();
+      _snackCaloriesController.clear();
+      _scoopController.clear();
       _selectedMealType = MealType.snack;
     }
 
@@ -1010,99 +912,56 @@ class _DietScreenState extends State<DietScreen> {
                           ),
                         ],
                       ),
-                      // const SizedBox(height: 20),
-                      // Text('Category',
-                      //     style: TextStyle(
-                      //         fontWeight: FontWeight.bold,
-                      //         fontSize: 12,
-                      //         color: isDark ? Colors.white70 : Colors.black87)),
-                      // const SizedBox(height: 10),
-                      // SegmentedButton<MealType>(
-                      //   showSelectedIcon: false,
-                      //   style: ButtonStyle(
-                      //     backgroundColor:
-                      //         WidgetStateProperty.resolveWith((states) {
-                      //       if (states.contains(WidgetState.selected))
-                      //         return AppColors.indigoPrimary;
-                      //       return isDark
-                      //           ? const Color(0xFF2A2A2A)
-                      //           : const Color(0xFFF2F3F7);
-                      //     }),
-                      //     foregroundColor:
-                      //         WidgetStateProperty.resolveWith((states) {
-                      //       if (states.contains(WidgetState.selected))
-                      //         return Colors.white;
-                      //       return isDark
-                      //           ? Colors.grey.shade300
-                      //           : AppColors.textMuted;
-                      //     }),
-                      //     side: WidgetStateProperty.all(
-                      //         const BorderSide(color: Colors.transparent)),
-                      //     shape: WidgetStateProperty.all(RoundedRectangleBorder(
-                      //         borderRadius: BorderRadius.circular(12))),
-                      //     visualDensity: VisualDensity.compact,
-                      //   ),
-                      //   segments: MealType.values.map((type) {
-                      //     final bool isSelected = _selectedMealType == type;
-                      //     return ButtonSegment<MealType>(
-                      //       value: type,
-                      //       label: Row(
-                      //         mainAxisSize: MainAxisSize.min,
-                      //         children: [
-                      //           if (isSelected)
-                      //             const Icon(Icons.check,
-                      //                 size: 14, color: Colors.white),
-                      //           if (isSelected) const SizedBox(width: 4),
-                      //           Icon(type.icon, size: 14),
-                      //           const SizedBox(width: 4),
-                      //           Text(type.displayName,
-                      //               style: const TextStyle(
-                      //                   fontSize: 11,
-                      //                   fontWeight: FontWeight.w600)),
-                      //         ],
-                      //       ),
-                      //     );
-                      //   }).toList(),
-                      //   selected: {_selectedMealType},
-                      //   onSelectionChanged: (Set<MealType> selection) {
-                      //     setModalState(() {
-                      //       _selectedMealType = selection.first;
-                      //     });
-                      //   },
-                      // ),
                       const SizedBox(height: 20),
-                      // TARGET: ONLY 2 FIELDS
-                      TextFormField(
-                        controller: _snackNameController,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                        decoration: fieldDecoration(
-                            label: 'Meal Name', hint: 'e.g. protein shake'),
-                        validator: (val) => (val == null || val.trim().isEmpty)
-                            ? 'Enter meal name'
-                            : null,
+                      ShakeWidget(
+                        shouldShake: modalShouldShake,
+                        onShakeComplete: () =>
+                            setModalState(() => modalShouldShake = false),
+                        child: TextFormField(
+                          controller: _snackNameController,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  isDark ? Colors.white : AppColors.textDark),
+                          decoration: fieldDecoration(
+                              label: 'Meal Name', hint: 'e.g. protein shake'),
+                          validator: (val) =>
+                              (val == null || val.trim().isEmpty)
+                                  ? 'Enter meal name'
+                                  : null,
+                        ),
                       ),
                       const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _snackCaloriesController,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                        decoration: fieldDecoration(
-                            label: 'Calories (kcal)',
-                            suffix: 'kcal',
-                            hint: 'e.g. 220'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                        onChanged: (val) {
-                          setModalState(() {
-                            updateSnackFromKcal(val);
-                          });
-                        },
-                        validator: (val) => (val == null || val.trim().isEmpty)
-                            ? 'Enter calories'
-                            : null,
+                      ShakeWidget(
+                        shouldShake: modalShouldShake,
+                        onShakeComplete: () =>
+                            setModalState(() => modalShouldShake = false),
+                        child: TextFormField(
+                          controller: _snackCaloriesController,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  isDark ? Colors.white : AppColors.textDark),
+                          decoration: fieldDecoration(
+                              label: 'Calories (kcal)',
+                              suffix: 'kcal',
+                              hint: 'e.g. 220'),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          onChanged: (val) {
+                            setModalState(() {
+                              updateSnackFromKcal(val);
+                            });
+                          },
+                          validator: (val) =>
+                              (val == null || val.trim().isEmpty)
+                                  ? 'Enter calories'
+                                  : null,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -1114,14 +973,15 @@ class _DietScreenState extends State<DietScreen> {
                               : const Color(0xFFF6F7FB),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text('Auto: ${_scoopController.text} scoop',
+                        child: Text(
+                            'Auto: ${_scoopController.text.isEmpty ? "0" : _scoopController.text} scoop',
                             style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.grey.shade600,
                                 fontWeight: FontWeight.w600)),
                       ),
                       const SizedBox(height: 24),
-                      _HapticScaleButton(
+                      _DietScaleButton(
                         onPressed: () async {
                           setModalState(() {
                             modalAutovalidateMode =
@@ -1155,13 +1015,15 @@ class _DietScreenState extends State<DietScreen> {
                               mealTypeName: _selectedMealType.name,
                             );
                             await _dietService.addMeal(meal);
-                            if (modalContext.mounted)
+                            if (modalContext.mounted) {
                               Navigator.pop(modalContext);
+                            }
                             if (outerContext.mounted && existingMeal == null) {
                               _showMealLoggedSuccess(outerContext, meal.id);
                             }
                           } else {
                             HapticFeedback.heavyImpact();
+                            setModalState(() => modalShouldShake = true);
                           }
                         },
                         child: Text(
@@ -1187,11 +1049,24 @@ class _DietScreenState extends State<DietScreen> {
     return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
   }
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _initializeData();
+  // }
+
+  // Future<void> _initializeData() async {
+  //   // Simulate async data/box initialization if needed
+  //   await Future.delayed(const Duration(milliseconds: 500));
+  //   if (mounted) {
+  //     setState(() => _isLoading = false);
+  //   }
+  // }
+
   @override
   Widget build(BuildContext context) {
     final currentUserId =
         Provider.of<AuthProvider>(context).currentUser?.email ?? 'guest_user';
-    final today = DateTime.now();
     final dietProvider = context.watch<DietProvider>();
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -1232,7 +1107,6 @@ class _DietScreenState extends State<DietScreen> {
                   style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      // color: AppColors.indigoPrimary)
                       color: isDark
                           ? const Color.fromARGB(255, 252, 252, 252)
                           : AppColors.textDark),
@@ -1245,19 +1119,28 @@ class _DietScreenState extends State<DietScreen> {
           ),
         ],
       ),
+      // body: _isLoading
+      //     ? AppSkeletonLoader(
+      //         isDark: isDark) // Shows shimmer only during startup
+      //     : ValueListenableBuilder(
       body: ValueListenableBuilder(
         valueListenable:
             Hive.box<MealModel>(HiveService.mealBoxName).listenable(),
         builder: (context, Box<MealModel> mealBox, _) {
-          final todayMeals = mealBox.values.where((meal) {
-            return meal.userId == currentUserId && _isSameDay(meal.date, today);
+// 1. Show your shimmer skeleton loader while the box has no data / is loading
+          // if (mealBox.values.isEmpty) {
+          //   return AppSkeletonLoader(isDark: isDark);
+          // }
+
+          final userMeals = mealBox.values.where((meal) {
+            return meal.userId == currentUserId || meal.userId.isEmpty;
           }).toList();
 
           final Map<MealType, List<MealModel>> groupedMeals = {
             for (var type in MealType.values) type: [],
           };
 
-          for (var meal in todayMeals) {
+          for (var meal in userMeals) {
             groupedMeals[_getMealType(meal)]?.add(meal);
           }
 
@@ -1265,7 +1148,6 @@ class _DietScreenState extends State<DietScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Search bar
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 15, vertical: 0),
@@ -1307,8 +1189,6 @@ class _DietScreenState extends State<DietScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-
-                // 2. Filter Chips
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Padding(
@@ -1362,8 +1242,6 @@ class _DietScreenState extends State<DietScreen> {
                   ),
                 ),
                 const SizedBox(height: 5),
-
-                // 3. Conditional Content: Favorites Tab vs Recent/Default Meal Groups
                 if (_selectedFilter == 'Favorites')
                   ValueListenableBuilder(
                     valueListenable:
@@ -1496,10 +1374,7 @@ class _DietScreenState extends State<DietScreen> {
                     const Gap(14),
                   ],
                 ],
-
                 const SizedBox(height: 12),
-
-                // 4. Water Tracker
                 Padding(
                   padding: const EdgeInsets.only(left: 20.0),
                   child: Row(
@@ -1553,222 +1428,6 @@ class _DietScreenState extends State<DietScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-// Testing
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const awesomedialog()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('awesomedialog')),
-                // // const SizedBox(height: 20),
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) => const RippleWave(
-                //                   child: Icon(Icons.add_ic_call_outlined),
-                //                 )), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('ripple wave')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const ripplewave1()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('ripple wave1')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const waveblob()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('wave blob')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const glowstone()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('glow stone')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const advancedshimmer()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('advanced shimmer')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const auto_shimmer_animate()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('auto_shimmer_animate')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const empty_view()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('empty_view')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const bouncy_button()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('bouncy button')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const m3e_haptics()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('m3e_haptics')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const animated_icon_button()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('animated_icon_button')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const simple_ripple_animation()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('simple_ripple_animation ')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const scale_button()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('scale_button')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const advanced_haptics()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('advanced_haptics')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const VibrationDemoPage()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('VibrationDemoPage')),
-
-                // TextButton(
-                //     onPressed: () {
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //             builder: (context) =>
-                //                 const on_process_button_widget()), // <-- your target page
-                //       );
-                //     },
-                //     child: const Text('on_process_button_widget')),
-
-                // ScaleTap(
-                //   onPressed: () {
-                //     //Tap
-                //   },
-                //   onLongPress: () {
-                //     //Long press
-                //   },
-                //   child: Container(
-                //     child: const Text("Tap Me"),
-                //   ),
-                // ),
-
-                // RippleWave(
-                //   color: Colors.greenAccent,
-                //   duration: const Duration(milliseconds: 800),
-                //   repeat: true,
-                //   childTween: Tween(begin: 0.1, end: 1.0),
-                //   // animationController: animationController,
-                //   waveCount: 4,
-                //   child: const Icon(
-                //     Icons.done,
-                //     size: 100,
-                //     color: Colors.white,
-                //   ),
-                // ),
-
-                // AppPrimaryButton(
-                //   label: 'save',
-                //   onPressed: () {},
-                // ),
-                // PressableScale(
-                //   onPressed: () {},
-                //   builder: (BuildContext context, bool isPressed) =>
-                //       const DietScreen(),
-                //   // builder: (context, isPressed) => ChatListTile(chat: chat),
-                // )
               ],
             ),
           );
@@ -1810,7 +1469,6 @@ class _DietScreenState extends State<DietScreen> {
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        // color: isDark ? Colors.white : AppColors.textDark
                         color: isDark ? Colors.grey : Colors.grey[700]),
                   ),
                   Row(
@@ -1818,7 +1476,6 @@ class _DietScreenState extends State<DietScreen> {
                       Text(
                         groupCalories > 0 ? '$groupCalories kcal' : '—',
                         style: TextStyle(
-                            // color: AppColors.textMuted,
                             color: isDark
                                 ? const Color.fromARGB(255, 253, 253, 253)
                                 : Colors.grey[700],
@@ -1844,7 +1501,6 @@ class _DietScreenState extends State<DietScreen> {
                           ),
                           child: Icon(Icons.add,
                               size: 18,
-                              // color: AppColors.indigoPrimary
                               color: isDark
                                   ? const Color.fromARGB(255, 255, 255, 255)
                                   : const Color.fromARGB(255, 0, 0, 0)),
@@ -1863,185 +1519,8 @@ class _DietScreenState extends State<DietScreen> {
               indent: 16.0,
               endIndent: 16.0,
             ),
-
-// Your Breakfast Card
-
-            // if (meals.isNotEmpty) ...[
-            //   ListView.builder(
-            //     shrinkWrap: true,
-            //     physics: const NeverScrollableScrollPhysics(),
-            //     itemCount: meals.length,
-            //     itemBuilder: (context, index) {
-            //       final meal = meals[index];
-            //       final mealType = _getMealType(meal);
-            //       final bool isSnackItem = mealType == MealType.snack &&
-            //           meal.carbsGrams == 0 &&
-            //           meal.fatGrams == 0;
-
-            //       final double derivedQty = _getMealQuantity(meal);
-            //       final double cleanDisplayQty =
-            //           double.parse(derivedQty.toStringAsFixed(1));
-            //       final String quantityDisplay = mealType == MealType.breakfast
-            //           ? '${cleanDisplayQty == cleanDisplayQty.roundToDouble() ? cleanDisplayQty.toInt() : cleanDisplayQty} g'
-            //           : '${cleanDisplayQty == cleanDisplayQty.roundToDouble() ? cleanDisplayQty.toInt() : cleanDisplayQty} ${cleanDisplayQty == 1 ? 'bowl' : 'bowls'}';
-
-            //       // // Check if item was added recently (within the last 2 seconds) to trigger the slide-in and glow effect[cite: 2]
-            //       // final bool isRecentlyAdded =
-            //       //     DateTime.now().difference(meal.date).inMilliseconds <
-            //       //         2000;
-
-            //       final bool isRecentlyAdded = _newlyAddedMealId == meal.id;
-
-            //       return Dismissible(
-            //         key: Key(meal.id),
-            //         direction: DismissDirection.endToStart,
-            //         background: Container(
-            //           alignment: Alignment.centerRight,
-            //           padding: const EdgeInsets.only(right: 24),
-            //           margin: const EdgeInsets.symmetric(
-            //               horizontal: 8, vertical: 4),
-            //           decoration: BoxDecoration(
-            //             color: Colors.red,
-            //             borderRadius: BorderRadius.circular(16),
-            //           ),
-            //           child: const Text('Delete',
-            //               style: TextStyle(
-            //                   color: Colors.white,
-            //                   fontWeight: FontWeight.bold)),
-            //         ),
-            //         onDismissed: (_) => _deleteMeal(context, meal),
-            //         child: _GlowingMealRow(
-            //           key: ValueKey(meal.id),
-            //           isNew: isRecentlyAdded,
-            //           isDark: isDark,
-            //           child: InkWell(
-            //             onTap: () {
-            //               if (isSnackItem) {
-            //                 _showAddSnackModal(context, existingMeal: meal);
-            //               } else {
-            //                 _showAddMealModal(context, existingMeal: meal);
-            //               }
-            //             },
-            //             child: Container(
-            //               margin: const EdgeInsets.symmetric(
-            //                   horizontal: 2, vertical: 4),
-            //               padding: const EdgeInsets.symmetric(
-            //                   horizontal: 12, vertical: 8),
-            //               child: isSnackItem
-            //                   ? Row(
-            //                       mainAxisAlignment:
-            //                           MainAxisAlignment.spaceBetween,
-            //                       crossAxisAlignment: CrossAxisAlignment.center,
-            //                       children: [
-            //                         Column(
-            //                           crossAxisAlignment:
-            //                               CrossAxisAlignment.start,
-            //                           children: [
-            //                             Text(
-            //                               meal.name,
-            //                               style: TextStyle(
-            //                                   fontWeight: FontWeight.bold,
-            //                                   fontSize: 12,
-            //                                   color: isDark
-            //                                       ? Colors.white
-            //                                       : AppColors.textDark),
-            //                             ),
-            //                             const SizedBox(height: 4),
-            //                             Text(
-            //                               '${meal.proteinGrams == meal.proteinGrams.roundToDouble() ? meal.proteinGrams.toInt() : meal.proteinGrams} scoop${meal.proteinGrams == 1 ? '' : 's'}',
-            //                               style: const TextStyle(
-            //                                   color: AppColors.textMuted,
-            //                                   fontSize: 10),
-            //                             ),
-            //                           ],
-            //                         ),
-            //                         Row(
-            //                           children: [
-            //                             ElevatedButton(
-            //                               style: ElevatedButton.styleFrom(
-            //                                 backgroundColor:
-            //                                     const Color(0xFFDC2626),
-            //                                 foregroundColor: Colors.white,
-            //                                 elevation: 0,
-            //                                 padding: const EdgeInsets.symmetric(
-            //                                     horizontal: 16, vertical: 6),
-            //                                 shape: RoundedRectangleBorder(
-            //                                   borderRadius:
-            //                                       BorderRadius.circular(12),
-            //                                 ),
-            //                               ),
-            //                               onPressed: () =>
-            //                                   _deleteMeal(context, meal),
-            //                               child: const Text('Delete',
-            //                                   style: TextStyle(
-            //                                       fontWeight: FontWeight.bold,
-            //                                       fontSize: 11)),
-            //                             ),
-            //                           ],
-            //                         ),
-            //                       ],
-            //                     )
-            //                   : Row(
-            //                       mainAxisAlignment:
-            //                           MainAxisAlignment.spaceBetween,
-            //                       crossAxisAlignment: CrossAxisAlignment.center,
-            //                       children: [
-            //                         Expanded(
-            //                           child: Column(
-            //                             crossAxisAlignment:
-            //                                 CrossAxisAlignment.start,
-            //                             children: [
-            //                               Text(
-            //                                 meal.name,
-            //                                 style: TextStyle(
-            //                                     fontWeight: FontWeight.bold,
-            //                                     fontSize: 12,
-            //                                     color: isDark
-            //                                         ? Colors.white
-            //                                         : AppColors.textDark),
-            //                               ),
-            //                               const SizedBox(height: 4),
-            //                               Text(
-            //                                 '$quantityDisplay • ${_timeFormatter.format(meal.date)}',
-            //                                 style: const TextStyle(
-            //                                     color: AppColors.textMuted,
-            //                                     fontSize: 10),
-            //                               ),
-            //                             ],
-            //                           ),
-            //                         ),
-            //                         _macroChip('${meal.proteinGrams.round()}P',
-            //                             AppColors.proteinIndigo),
-            //                         const SizedBox(width: 6),
-            //                         _macroChip('${meal.carbsGrams.round()}C',
-            //                             AppColors.carbsAmber),
-            //                         const SizedBox(width: 6),
-            //                         _macroChip('${meal.fatGrams.round()}F',
-            //                             AppColors.fatsPink),
-            //                         const SizedBox(width: 5),
-            //                         Text(
-            //                           _numberFormatter.format(meal.calories),
-            //                           style: TextStyle(
-            //                               fontWeight: FontWeight.bold,
-            //                               fontSize: 12,
-            //                               color: isDark
-            //                                   ? Colors.white
-            //                                   : AppColors.textDark),
-            //                         ),
-            //                       ],
-            //                     ),
-            //             ),
-            //           ),
-            //         ),
-            //       );
-            //     },
-            //   ),
-            //   const SizedBox(height: 6),
-            // ],
-
             if (meals.isNotEmpty) ...[
               ClipRect(
-                // borderRadius: BorderRadius.circular(16),
                 child: ListView.builder(
                   clipBehavior: Clip.hardEdge,
                   shrinkWrap: true,
@@ -2063,23 +1542,14 @@ class _DietScreenState extends State<DietScreen> {
                         ? '${cleanDisplayQty == cleanDisplayQty.roundToDouble() ? cleanDisplayQty.toInt() : cleanDisplayQty} g'
                         : '${cleanDisplayQty == cleanDisplayQty.roundToDouble() ? cleanDisplayQty.toInt() : cleanDisplayQty} ${cleanDisplayQty == 1 ? 'bowl' : 'bowls'}';
 
-                    // // Check if item was added recently (within the last 2 seconds) to trigger the slide-in and glow effect[cite: 2]
-                    // final bool isRecentlyAdded =
-                    //     DateTime.now().difference(meal.date).inMilliseconds <
-                    //         2000;
-
                     final bool isRecentlyAdded = _newlyAddedMealId == meal.id;
 
                     return Dismissible(
                       key: Key(meal.id),
-                      direction:
-                          DismissDirection.endToStart, // swipe right -> left
-                      // if you want left -> right use: DismissDirection.startToEnd
+                      direction: DismissDirection.endToStart,
                       background: Container(
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.only(right: 24),
-                        // margin: const EdgeInsets.symmetric(
-                        //     horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.red,
                           borderRadius: BorderRadius.circular(16),
@@ -2126,22 +1596,15 @@ class _DietScreenState extends State<DietScreen> {
                                                 fontSize: 12,
                                                 color: isDark
                                                     ? const Color(0xFF9CA3AF)
-                                                    : AppColors.textDark
-                                                // color: isDark
-                                                //     ? Colors.grey
-                                                //     : Colors.grey[700]
-                                                ),
+                                                    : AppColors.textDark),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
                                             '${meal.proteinGrams == meal.proteinGrams.roundToDouble() ? meal.proteinGrams.toInt() : meal.proteinGrams} scoop${meal.proteinGrams == 1 ? '' : 's'}',
                                             style: TextStyle(
-                                                // color: AppColors.textMuted,
                                                 color: isDark
                                                     ? const Color.fromARGB(
                                                         255, 255, 255, 255)
-                                                    // ? const Color.fromARGB(
-                                                    //Color.fromARGB(255, 0, 0, 0) 255)
                                                     : const Color.fromARGB(
                                                         255, 0, 0, 0),
                                                 fontSize: 10),
@@ -2187,25 +1650,19 @@ class _DietScreenState extends State<DietScreen> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-// meal name colors :
                                             Text(
                                               meal.name,
                                               style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 12,
-                                                  // color: isDark
-                                                  //     ? Colors.grey
-                                                  //     : Colors.grey[700]
                                                   color: isDark
                                                       ? const Color(0xFF9CA3AF)
                                                       : AppColors.textDark),
                                             ),
                                             const SizedBox(height: 4),
-// quantity color : like g,bowl,
                                             Text(
                                               '$quantityDisplay • ${_timeFormatter.format(meal.date)}',
                                               style: TextStyle(
-                                                  // color: AppColors.textMuted,
                                                   color: isDark
                                                       ? const Color.fromARGB(
                                                           255, 255, 255, 255)
@@ -2216,7 +1673,6 @@ class _DietScreenState extends State<DietScreen> {
                                           ],
                                         ),
                                       ),
-// chip color :
                                       _macroChip(
                                           '${meal.proteinGrams.round()}P',
                                           AppColors.proteinIndigo),
@@ -2227,7 +1683,6 @@ class _DietScreenState extends State<DietScreen> {
                                       _macroChip('${meal.fatGrams.round()}F',
                                           AppColors.fatsPink),
                                       const SizedBox(width: 5),
-// calories color :
                                       Text(
                                         _numberFormatter.format(meal.calories),
                                         style: TextStyle(
@@ -2235,9 +1690,7 @@ class _DietScreenState extends State<DietScreen> {
                                             fontSize: 12,
                                             color: isDark
                                                 ? Colors.white
-                                                : AppColors.textDark
-                                            //  color: isDark ? Colors.grey : Colors.grey[700]
-                                            ),
+                                                : AppColors.textDark),
                                       ),
                                     ],
                                   ),
@@ -2274,9 +1727,6 @@ class _DietScreenState extends State<DietScreen> {
   }
 }
 
-/// Visual Update #3: Fixed with condition - slide on isNew OR forceSlide
-/// forceSlide = true on Favourites->Recent and on Workout->Diet navigation
-/// FINAL FIX: slide on isNew OR forceSlide, glow only on isNew, no second slide
 class _GlowingMealRow extends StatefulWidget {
   final Widget child;
   final bool isNew;
@@ -2307,7 +1757,6 @@ class _GlowingMealRowState extends State<_GlowingMealRow>
     super.initState();
     _slideController = AnimationController(
       vsync: this,
-      // duration: const Duration(milliseconds: 800),
       duration: const Duration(seconds: 3),
     );
     _slideAnimation = Tween<Offset>(
@@ -2318,11 +1767,10 @@ class _GlowingMealRowState extends State<_GlowingMealRow>
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
         CurvedAnimation(parent: _slideController, curve: Curves.easeIn));
 
-    // Slide runs if it's a new meal OR tab switch
     if (widget.isNew || widget.forceSlide) {
       _slideController.forward();
     } else {
-      _slideController.value = 1.0; // already visible, no animation
+      _slideController.value = 1.0;
     }
 
     _startGlowIfNeeded();
@@ -2342,11 +1790,9 @@ class _GlowingMealRowState extends State<_GlowingMealRow>
   @override
   void didUpdateWidget(covariant _GlowingMealRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Trigger slide when forceSlide becomes true (Favourites -> Recent)
     if (widget.forceSlide && !oldWidget.forceSlide) {
       _slideController.forward(from: 0);
     }
-    // Restart glow only when isNew becomes true, not when it becomes false
     if (widget.isNew && !oldWidget.isNew) {
       _glowActive = false;
       _startGlowIfNeeded();
@@ -2362,14 +1808,12 @@ class _GlowingMealRowState extends State<_GlowingMealRow>
 
   @override
   Widget build(BuildContext context) {
-// FIXED FOR DARK THEME: row background now adapts to isDark
     final Color normalBg = widget.isDark
-        ? const Color.fromARGB(0, 42, 42,
-            42) // dark row - slightly lighter than group card 0xFF1E1E1E
+        ? const Color.fromARGB(0, 42, 42, 42)
         : const Color.fromARGB(255, 253, 253, 253);
 
     final Color glowBg = widget.isDark
-        ? const Color(0xFF324D1E) // dark green glow for dark theme
+        ? const Color(0xFF324D1E)
         : const Color.fromARGB(255, 208, 252, 144);
 
     const Color glowBorder = Color.fromARGB(255, 153, 255, 0);
@@ -2379,30 +1823,19 @@ class _GlowingMealRowState extends State<_GlowingMealRow>
       child: FadeTransition(
         opacity: _fadeAnimation,
         child: AnimatedContainer(
-          // duration: const Duration(milliseconds: 1000),
           duration: const Duration(seconds: 2),
-
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            //   color: _glowActive
-            //       ? const Color.fromARGB(255, 208, 252, 144)
-            //       : const Color.fromARGB(255, 253, 253, 253),
             color: _glowActive ? glowBg : normalBg,
-
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _glowActive ? glowBorder : Colors.transparent,
               width: _glowActive ? 2.5 : 0.0,
-              // color: _glowActive
-              //     ? const Color.fromARGB(255, 153, 255, 0)
-              //     : Colors.transparent,
-              // width: _glowActive ? 5.0 : 0.0,
             ),
             boxShadow: _glowActive
                 ? [
                     BoxShadow(
                       color: const Color.fromARGB(255, 188, 238, 114)
-                          // .withValues(alpha: 0.3),
                           .withValues(alpha: widget.isDark ? 0.25 : 0.3),
                       blurRadius: 10,
                       spreadRadius: 1,
@@ -2417,22 +1850,20 @@ class _GlowingMealRowState extends State<_GlowingMealRow>
   }
 }
 
-// // Storyboard A: Save Button with width/height animation and opposing outer/inner scale
-
-class _HapticScaleButton extends StatefulWidget {
+class _DietScaleButton extends StatefulWidget {
   final VoidCallback onPressed;
   final Widget child;
 
-  const _HapticScaleButton({
+  const _DietScaleButton({
     required this.onPressed,
     required this.child,
   });
 
   @override
-  State<_HapticScaleButton> createState() => _HapticScaleButtonState();
+  State<_DietScaleButton> createState() => _DietScaleButtonState();
 }
 
-class _HapticScaleButtonState extends State<_HapticScaleButton>
+class _DietScaleButtonState extends State<_DietScaleButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _innerScaleAnimation;
@@ -2445,7 +1876,6 @@ class _HapticScaleButtonState extends State<_HapticScaleButton>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 60),
-      // duration: const Duration(seconds: 5),
     );
 
     _innerScaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
@@ -2499,7 +1929,6 @@ class _HapticScaleButtonState extends State<_HapticScaleButton>
                   scale: _outerScaleAnimation.value,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 60),
-                    // duration: const Duration(seconds: 5),
                     curve: Curves.easeOutCubic,
                     width: _isPressed ? 180 : 200,
                     height: _isPressed ? 60 : 50,
@@ -2523,8 +1952,6 @@ class _HapticScaleButtonState extends State<_HapticScaleButton>
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 60),
-                // duration: const Duration(seconds: 1),
-
                 curve: Curves.easeOutCubic,
                 width: _isPressed ? 180 : 200,
                 height: _isPressed ? 46 : 50,
@@ -2541,6 +1968,69 @@ class _HapticScaleButtonState extends State<_HapticScaleButton>
           ],
         ),
       ),
+    );
+  }
+}
+
+class ShakeWidget extends StatefulWidget {
+  final Widget child;
+  final bool shouldShake;
+  final VoidCallback onShakeComplete;
+
+  const ShakeWidget({
+    super.key,
+    required this.child,
+    required this.shouldShake,
+    required this.onShakeComplete,
+  });
+
+  @override
+  State<ShakeWidget> createState() => _ShakeWidgetState();
+}
+
+class _ShakeWidgetState extends State<ShakeWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant ShakeWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.shouldShake && !oldWidget.shouldShake) {
+      HapticFeedback.heavyImpact();
+      _controller.forward(from: 0.0).then((_) {
+        widget.onShakeComplete();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final sineValue = sin(_controller.value * pi * 4);
+        final offset = sineValue * 8.0 * (1.0 - _controller.value);
+        return Transform.translate(
+          offset: Offset(offset, 0),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }

@@ -11,7 +11,7 @@ class ProfileProvider with ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
 
   // Daily Nutrition Goals
-  int _targetCalories = 2000;
+  int _targetCalories = 2200;
   double _targetProtein = 150.0;
   double _targetCarbs = 200.0;
   double _targetFats = 65.0;
@@ -62,6 +62,93 @@ class ProfileProvider with ChangeNotifier {
       carbs: carbs,
       fats: fats,
     );
+  }
+
+// for update the target calories
+  // Future<void> updateTargetCalories(int newCalories) async {
+  //   _targetCalories = newCalories;
+  //   // If you are saving to Hive or SharedPreferences, add your save logic here:
+  //   // final box = Hive.box(HiveService.profileBoxName);
+  //   // box.put('target_calories', newCalories);
+  //   notifyListeners();
+  // }
+
+// Future<void> _saveToHive() async {
+//   try {
+//     if (Hive.isBoxOpen(HiveService.profileBoxName)) {
+//       final box = Hive.box(HiveService.profileBoxName);
+//       box.put('target_calories', _targetCalories);
+//       box.put('target_protein', _targetProtein);
+//       box.put('target_carbs', _targetCarbs);
+//       box.put('target_fats', _targetFats);
+//     }
+//   } catch (e) {
+//     debugPrint('Error saving profile to Hive: $e');
+//   }
+// }
+
+  // Future<void> updateTargetCalories(int newCalories) async {
+  //   _targetCalories = newCalories;
+
+  //   // Automatically adjust target macros based on new calorie target
+  //   _targetProtein = ((newCalories * 0.30) / 4).round().toDouble();
+  //   _targetCarbs = ((newCalories * 0.50) / 4).round().toDouble();
+  //   _targetFats = ((newCalories * 0.20) / 9).round().toDouble();
+
+  //   // Persist securely using FlutterSecureStorage bound to active userId
+  //   if (_currentUserId != null) {
+  //     await _secureStorage.write(
+  //       key: '${_currentUserId}_target_calories',
+  //       value: _targetCalories.toString(),
+  //     );
+  //     await _secureStorage.write(
+  //       key: '${_currentUserId}_target_protein',
+  //       value: _targetProtein.toString(),
+  //     );
+  //     await _secureStorage.write(
+  //       key: '${_currentUserId}_target_carbs',
+  //       value: _targetCarbs.toString(),
+  //     );
+  //     await _secureStorage.write(
+  //       key: '${_currentUserId}_target_fats',
+  //       value: _targetFats.toString(),
+  //     );
+  //   }
+
+  //   notifyListeners();
+  // }
+
+  Future<void> updateTargetCalories(int newCalories) async {
+    _targetCalories = newCalories;
+
+    // Scale macros proportionally based on your 2200 kcal baseline
+    // (150g Protein, 200g Carbs, 65g Fats at 2200 kcal)
+    final double scale = newCalories / 2200.0;
+    _targetProtein = (150.0 * scale).round().toDouble();
+    _targetCarbs = (200.0 * scale).round().toDouble();
+    _targetFats = (65.0 * scale).round().toDouble();
+
+    // Persist securely using FlutterSecureStorage bound to active userId
+    if (_currentUserId != null) {
+      await _secureStorage.write(
+        key: '${_currentUserId}_target_calories',
+        value: _targetCalories.toString(),
+      );
+      await _secureStorage.write(
+        key: '${_currentUserId}_target_protein',
+        value: _targetProtein.toString(),
+      );
+      await _secureStorage.write(
+        key: '${_currentUserId}_target_carbs',
+        value: _targetCarbs.toString(),
+      );
+      await _secureStorage.write(
+        key: '${_currentUserId}_target_fats',
+        value: _targetFats.toString(),
+      );
+    }
+
+    notifyListeners();
   }
 
   /// Save daily targets bound to active userId

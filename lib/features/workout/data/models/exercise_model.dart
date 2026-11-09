@@ -24,7 +24,7 @@ class ExerciseModel extends HiveObject {
   final DateTime? createdAt;
 
   @HiveField(6)
-  final String userId;
+  String userId;
 
   @HiveField(7)
   final List<SetModel>? setsList;

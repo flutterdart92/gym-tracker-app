@@ -87,12 +87,27 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  void syncUserProviders(BuildContext context, String userId) {
-    Provider.of<WorkoutProvider>(context, listen: false)
-        .loadUserWorkouts(userId);
-    Provider.of<DietProvider>(context, listen: false).loadUserMeals(userId);
-    Provider.of<ProfileProvider>(context, listen: false)
-        .loadUserProfile(userId);
+  // void syncUserProviders(BuildContext context, String userId) {
+  //   Provider.of<WorkoutProvider>(context, listen: false)
+  //       .loadUserWorkouts(userId);
+  //   Provider.of<DietProvider>(context, listen: false).loadUserMeals(userId);
+  //   Provider.of<ProfileProvider>(context, listen: false)
+  //       .loadUserProfile(userId);
+  // }
+
+  // Inside AuthProvider (auth_provider.dart)
+
+  Future<void> syncUserProviders(BuildContext context, String userId) async {
+    final workoutProvider =
+        Provider.of<WorkoutProvider>(context, listen: false);
+    final dietProvider = Provider.of<DietProvider>(context, listen: false);
+    final profileProvider =
+        Provider.of<ProfileProvider>(context, listen: false);
+
+    // Load user-specific data into providers
+    await workoutProvider.loadUserWorkouts(userId);
+    await dietProvider.loadUserMeals(userId);
+    await profileProvider.loadUserProfile(userId);
   }
 
   void _resetUserProviders(BuildContext context) {
@@ -143,7 +158,8 @@ class AuthProvider extends ChangeNotifier {
       resetFailedAttempts();
 
       if (context != null && context.mounted) {
-        syncUserProviders(context, newUser.id);
+        // syncUserProviders(context, newUser.id);
+        syncUserProviders(context, newUser.email);
       }
     } finally {
       _isLoading = false;
@@ -194,7 +210,8 @@ class AuthProvider extends ChangeNotifier {
       resetFailedAttempts();
 
       if (context != null && context.mounted) {
-        syncUserProviders(context, savedUser.id);
+        // syncUserProviders(context, savedUser.id);
+        syncUserProviders(context, savedUser.email);
       }
     } catch (e) {
       rethrow;
